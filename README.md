@@ -1,15 +1,30 @@
 # 🔐 Passdoo Browser Extension
 
-Estensione browser per accedere alle password salvate in **Passdoo** (Password Manager per ODOO) direttamente dal browser.
+<p align="center">
+  <img src="src/icons/icon-128.png" alt="Passdoo Logo" width="128"/>
+</p>
+
+<p align="center">
+  <strong>Password Manager per ODOO - Estensione Browser</strong><br>
+  Accedi alle tue password salvate in Passdoo direttamente dal browser
+</p>
+
+<p align="center">
+  <a href="https://portal.novacs.net/passdoo/downloads">📥 Download</a> •
+  <a href="#-installazione">📖 Installazione</a> •
+  <a href="#-utilizzo">🚀 Utilizzo</a>
+</p>
+
+---
 
 ## ✨ Funzionalità
 
 - **Accesso rapido**: Accedi alle tue password direttamente dal popup dell'estensione
-- **Compilazione automatica**: Rileva i campi di login e suggerisce le password salvate
-- **Ricerca**: Cerca rapidamente tra tutte le tue password
-- **Password suggerite**: L'estensione suggerisce automaticamente le password per il sito corrente
-- **Sicurezza**: Autenticazione tramite ODOO con supporto Entra ID
+- **Ricerca in tempo reale**: Cerca rapidamente tra tutte le tue password
+- **Raggruppamento**: Password organizzate per cliente e categoria (Personali/Condivise)
 - **Copia rapida**: Copia username e password con un click
+- **Logo clienti**: Visualizza i loghi dei clienti associati alle password
+- **Sicurezza**: Autenticazione tramite ODOO con supporto Microsoft Entra ID
 
 ## 🚀 Installazione
 
@@ -21,18 +36,20 @@ Estensione browser per accedere alle password salvate in **Passdoo** (Password M
 
 ### Installazione su Chrome
 
-1. Scarica o clona questa repository
-2. Apri Chrome e vai su `chrome://extensions/`
-3. Abilita "Modalità sviluppatore" in alto a destra
-4. Clicca "Carica estensione non pacchettizzata"
-5. Seleziona la cartella `passdoo_browser_extension`
+1. Scarica l'ultima versione da [Releases](https://github.com/balduz84/Passdoo-browser-extension/releases)
+2. Estrai l'archivio ZIP
+3. Apri Chrome e vai su `chrome://extensions/`
+4. Abilita "Modalità sviluppatore" in alto a destra
+5. Clicca "Carica estensione non pacchettizzata"
+6. Seleziona la cartella estratta
 
 ### Installazione su Firefox
 
-1. Scarica o clona questa repository
-2. Apri Firefox e vai su `about:debugging#/runtime/this-firefox`
-3. Clicca "Carica componente aggiuntivo temporaneo"
-4. Seleziona il file `manifest.json`
+1. Scarica l'ultima versione da [Releases](https://github.com/balduz84/Passdoo-browser-extension/releases)
+2. Estrai l'archivio ZIP
+3. Apri Firefox e vai su `about:debugging#/runtime/this-firefox`
+4. Clicca "Carica componente aggiuntivo temporaneo"
+5. Seleziona il file `manifest.json` dalla cartella estratta
 
 ## 📖 Utilizzo
 
@@ -126,6 +143,16 @@ web-ext build
 1. Apri gli strumenti sviluppatore dell'estensione
 2. Per Chrome: `chrome://extensions/` → Dettagli → Service worker
 3. Per Firefox: `about:debugging` → Ispeziona
+
+## 📄 Licenza
+
+© 2025 NovaCS S.r.l. - Tutti i diritti riservati
+
+## 🔗 Link Utili
+
+- [Passdoo Desktop App](https://github.com/balduz84/Passdoo-desktop)
+- [Pagina Download](https://portal.novacs.net/passdoo/downloads)
+- [NovaCS](https://www.novacs.net)
 
 ## 📝 Note
 
