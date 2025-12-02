@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Passdoo Password Manager",
   "short_name": "Passdoo",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Password manager per ODOO - Accedi e inserisci le password salvate in Passdoo direttamente nel browser",
   "author": "NovaCS",
   "homepage_url": "https://portal.novacs.net",
