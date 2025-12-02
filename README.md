@@ -5,167 +5,163 @@
 </p>
 
 <p align="center">
-  <strong>Password Manager per ODOO - Estensione Browser</strong><br>
-  Accedi alle tue password salvate in Passdoo direttamente dal browser
+  <strong>Password Manager for ODOO - Browser Extension</strong><br>
+  Access your passwords saved in Passdoo directly from your browser
 </p>
 
 <p align="center">
   <a href="https://portal.novacs.net/passdoo/downloads">📥 Download</a> •
-  <a href="#-installazione">📖 Installazione</a> •
-  <a href="#-utilizzo">🚀 Utilizzo</a>
+  <a href="#-installation">📖 Installation</a> •
+  <a href="#-usage">🚀 Usage</a>
 </p>
 
 ---
 
-## ✨ Funzionalità
+## ✨ Features
 
-- **Accesso rapido**: Accedi alle tue password direttamente dal popup dell'estensione
-- **Ricerca in tempo reale**: Cerca rapidamente tra tutte le tue password
-- **Raggruppamento**: Password organizzate per cliente e categoria (Personali/Condivise)
-- **Copia rapida**: Copia username e password con un click
-- **Logo clienti**: Visualizza i loghi dei clienti associati alle password
-- **Sicurezza**: Autenticazione tramite ODOO con supporto Microsoft Entra ID
+- **Quick Access**: Access your passwords directly from the extension popup
+- **Real-time Search**: Quickly search through all your passwords
+- **Grouping**: Passwords organized by client and category (Personal/Shared)
+- **Quick Copy**: Copy username and password with one click
+- **Client Logos**: Display client logos associated with passwords
+- **Security**: Authentication via ODOO with Microsoft Entra ID support
 
-## 🚀 Installazione
+## 🚀 Installation
 
-### Prerequisiti
+### Prerequisites
 
-- Google Chrome 88+ o Firefox 109+
-- Accesso a ODOO con il modulo Passdoo installato
-- Account configurato su https://portal.novacs.net
+- Google Chrome 88+ or Firefox 109+
+- Access to ODOO with Passdoo module installed
+- Account configured on https://portal.novacs.net
 
-### Installazione su Chrome
+### Chrome Installation
 
-1. Scarica l'ultima versione da [Releases](https://github.com/balduz84/Passdoo-browser-extension/releases)
-2. Estrai l'archivio ZIP
-3. Apri Chrome e vai su `chrome://extensions/`
-4. Abilita "Modalità sviluppatore" in alto a destra
-5. Clicca "Carica estensione non pacchettizzata"
-6. Seleziona la cartella estratta
+1. Download the latest version from [Releases](https://github.com/balduz84/Passdoo-browser-extension/releases)
+2. Extract the ZIP archive
+3. Open Chrome and go to `chrome://extensions/`
+4. Enable "Developer mode" in the top right
+5. Click "Load unpacked"
+6. Select the extracted folder
 
-### Installazione su Firefox
+### Firefox Installation
 
-1. Scarica l'ultima versione da [Releases](https://github.com/balduz84/Passdoo-browser-extension/releases)
-2. Estrai l'archivio ZIP
-3. Apri Firefox e vai su `about:debugging#/runtime/this-firefox`
-4. Clicca "Carica componente aggiuntivo temporaneo"
-5. Seleziona il file `manifest.json` dalla cartella estratta
+1. Download the latest version from [Releases](https://github.com/balduz84/Passdoo-browser-extension/releases)
+2. Extract the ZIP archive
+3. Open Firefox and go to `about:debugging#/runtime/this-firefox`
+4. Click "Load Temporary Add-on"
+5. Select the `manifest.json` file from the extracted folder
 
-## 📖 Utilizzo
+## 📖 Usage
 
-### Primo accesso
+### First Login
 
-1. Clicca sull'icona Passdoo nella barra degli strumenti
-2. Clicca "Accedi con Entra ID"
-3. Effettua il login con le tue credenziali ODOO
-4. L'estensione è ora pronta all'uso
+1. Click the Passdoo icon in the toolbar
+2. Click "Sign in with Entra ID"
+3. Log in with your ODOO credentials
+4. The extension is now ready to use
 
-### Compilazione automatica
+### Auto-fill
 
-Quando visiti una pagina con un modulo di login:
+When you visit a page with a login form:
 
-1. Vedrai un'icona Passdoo accanto ai campi username/password
-2. Clicca sull'icona per vedere le password suggerite
-3. Seleziona la password per compilare automaticamente i campi
+1. You'll see a Passdoo icon next to the username/password fields
+2. Click the icon to see suggested passwords
+3. Select a password to auto-fill the fields
 
-### Scorciatoie da tastiera
+### Keyboard Shortcuts
 
-- `Alt+Shift+P`: Apri il popup Passdoo
-- `Alt+Shift+F`: Compila automaticamente i campi della pagina corrente
+- `Alt+Shift+P`: Open Passdoo popup
+- `Alt+Shift+F`: Auto-fill fields on the current page
 
-## 🔒 Sicurezza
+## 🔒 Security
 
-- Le password sono memorizzate cifrate nel database ODOO
-- La sessione viene validata ad ogni richiesta
-- Blocco automatico dopo un periodo di inattività
-- Nessuna password viene memorizzata localmente in chiaro
-- Audit completo di tutti gli accessi
+- Passwords are stored encrypted in the ODOO database
+- Session is validated on every request
+- Automatic lock after inactivity period
+- No passwords are stored locally in plain text
+- Complete audit trail of all accesses
 
-## 🏗️ Struttura del Progetto
+## 🏗️ Project Structure
 
 ```
 passdoo_browser_extension/
-├── manifest.json           # Manifest dell'estensione (Chrome MV3)
+├── manifest.json           # Extension manifest (Chrome MV3)
 ├── src/
 │   ├── background/         # Service worker
 │   │   ├── service-worker.js
-│   │   └── api/           # Client API
+│   │   └── api/           # API Client
 │   │       ├── passdoo-api.js
 │   │       ├── auth-service.js
 │   │       └── storage-service.js
-│   ├── popup/             # Interfaccia popup
+│   ├── popup/             # Popup interface
 │   │   ├── popup.html
 │   │   ├── popup.js
 │   │   └── popup.css
 │   ├── content/           # Content script
 │   │   ├── content-script.js
 │   │   └── content-styles.css
-│   ├── options/           # Pagina opzioni
+│   ├── options/           # Options page
 │   │   ├── options.html
 │   │   └── options.js
-│   └── icons/             # Icone estensione
+│   └── icons/             # Extension icons
 └── README.md
 ```
 
-## 🔧 Configurazione Server ODOO
+## 🔧 ODOO Server Configuration
 
-Per utilizzare l'estensione, il modulo Passdoo su ODOO deve esporre le API REST. Aggiungi i controller forniti nella directory `controllers/` del modulo Passdoo.
+To use the extension, the Passdoo module on ODOO must expose REST APIs. Add the controllers provided in the `controllers/` directory of the Passdoo module.
 
 ### API Endpoints
 
-| Endpoint | Metodo | Descrizione |
+| Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/passdoo/api/extension/auth` | GET | Avvia autenticazione |
-| `/passdoo/api/extension/validate` | GET | Valida sessione |
-| `/passdoo/api/extension/passwords` | GET | Lista password |
-| `/passdoo/api/extension/password/<id>` | GET | Dettaglio password |
-| `/passdoo/api/extension/passwords/search` | POST | Cerca password |
-| `/passdoo/api/extension/user` | GET | Info utente |
+| `/passdoo/api/extension/auth` | GET | Start authentication |
+| `/passdoo/api/extension/validate` | GET | Validate session |
+| `/passdoo/api/extension/passwords` | GET | List passwords |
+| `/passdoo/api/extension/password/<id>` | GET | Password details |
+| `/passdoo/api/extension/passwords/search` | POST | Search passwords |
+| `/passdoo/api/extension/user` | GET | User info |
 
-## 🛠️ Sviluppo
+## 🛠️ Development
 
-### Build per produzione
+### Production Build
 
-Per Chrome:
+For Chrome:
 ```bash
-# Crea un file .crx o .zip per il Chrome Web Store
+# Create a .crx or .zip file for Chrome Web Store
 zip -r passdoo-extension.zip . -x "*.git*" -x "*.md"
 ```
 
-Per Firefox:
+For Firefox:
 ```bash
-# Crea un file .xpi per Firefox Add-ons
+# Create a .xpi file for Firefox Add-ons
 web-ext build
 ```
 
 ### Debug
 
-1. Apri gli strumenti sviluppatore dell'estensione
-2. Per Chrome: `chrome://extensions/` → Dettagli → Service worker
-3. Per Firefox: `about:debugging` → Ispeziona
+1. Open the extension developer tools
+2. For Chrome: `chrome://extensions/` → Details → Service worker
+3. For Firefox: `about:debugging` → Inspect
 
-## 📄 Licenza
+## 📝 Notes
 
-© 2025 NovaCS S.r.l. - Tutti i diritti riservati
+- The extension is designed to work with ODOO 18 Enterprise Edition
+- Requires the Passdoo module installed and configured
+- Authentication leverages the Entra ID integration already configured in ODOO
 
-## 🔗 Link Utili
-
-- [Passdoo Desktop App](https://github.com/balduz84/Passdoo-desktop)
-- [Pagina Download](https://portal.novacs.net/passdoo/downloads)
-- [NovaCS](https://www.novacs.net)
-
-## 📝 Note
-
-- L'estensione è progettata per funzionare con ODOO 18 Enterprise Edition
-- Richiede il modulo Passdoo installato e configurato
-- L'autenticazione sfrutta l'integrazione Entra ID già configurata in ODOO
-
-## 📄 Licenza
+## 📄 License
 
 Copyright © 2025 NovaCS
 
-Tutti i diritti riservati.
+All rights reserved.
 
-## 🤝 Supporto
+## 🔗 Useful Links
 
-Per problemi o richieste, contatta il supporto tecnico NovaCS.
+- [Passdoo Desktop App](https://github.com/balduz84/Passdoo-desktop)
+- [Download Page](https://portal.novacs.net/passdoo/downloads)
+- [NovaCS](https://www.novacs.net)
+
+## 🤝 Support
+
+For issues or requests, contact NovaCS technical support.
