@@ -162,7 +162,7 @@ web-ext build
 
 ## 📄 Licenza
 
-Copyright © 2024 NovaCS
+Copyright © 2025 NovaCS
 
 Tutti i diritti riservati.
 
