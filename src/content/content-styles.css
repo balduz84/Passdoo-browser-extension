@@ -1,0 +1,78 @@
+/**
+ * Passdoo Browser Extension - Content Script Styles
+ */
+
+/* Campo con icona Passdoo */
+.passdoo-field-wrapper {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.passdoo-icon {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #2563eb;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  z-index: 10000;
+  background: white;
+  border-radius: 4px;
+}
+
+.passdoo-icon:hover {
+  opacity: 1;
+}
+
+/* Overlay del menu password */
+.passdoo-overlay {
+  position: fixed;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 10001;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Password item nel menu */
+.passdoo-password-item {
+  padding: 10px 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.2s;
+}
+
+.passdoo-password-item:hover {
+  background: #f3f4f6;
+}
+
+/* Notifiche */
+.passdoo-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background: #10b981;
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 10002;
+}
+
+.passdoo-notification.error {
+  background: #ef4444;
+}

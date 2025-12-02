@@ -1,0 +1,85 @@
+{
+  "manifest_version": 3,
+  "name": "Passdoo Password Manager",
+  "short_name": "Passdoo",
+  "version": "1.1.0",
+  "description": "Password manager per ODOO - Accedi e inserisci le password salvate in Passdoo direttamente nel browser",
+  "author": "NovaCS",
+  "homepage_url": "https://portal.novacs.net",
+  
+  "icons": {
+    "16": "src/icons/icon-16.png",
+    "32": "src/icons/icon-32.png",
+    "48": "src/icons/icon-48.png",
+    "128": "src/icons/icon-128.png"
+  },
+  
+  "action": {
+    "default_icon": {
+      "16": "src/icons/icon-16.png",
+      "32": "src/icons/icon-32.png",
+      "48": "src/icons/icon-48.png"
+    },
+    "default_title": "Passdoo - Password Manager",
+    "default_popup": "src/popup/popup.html"
+  },
+  
+  "background": {
+    "service_worker": "src/background/service-worker.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/content-script.js"],
+      "css": ["src/content/content-styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "cookies",
+    "alarms",
+    "clipboardWrite"
+  ],
+  
+  "host_permissions": [
+    "https://portal.novacs.net/*",
+    "<all_urls>"
+  ],
+  
+  "web_accessible_resources": [
+    {
+      "resources": ["src/icons/*", "src/content/*"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+P",
+        "mac": "Alt+Shift+P"
+      },
+      "description": "Apri Passdoo"
+    },
+    "fill_credentials": {
+      "suggested_key": {
+        "default": "Alt+Shift+F",
+        "mac": "Alt+Shift+F"
+      },
+      "description": "Compila credenziali nella pagina corrente"
+    }
+  },
+  
+  "options_page": "src/options/options.html",
+  
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none';"
+  }
+}
