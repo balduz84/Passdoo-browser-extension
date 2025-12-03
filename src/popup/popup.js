@@ -252,21 +252,16 @@ async function loadPasswords(forceRefresh = false) {
     
     state.passwords = response.passwords || [];
     
-    // Filtra per mostrare solo le password accessibili all'utente
-    // (il server dovrebbe già farlo, ma per sicurezza filtriamo anche lato client)
-    state.accessiblePasswords = state.passwords.filter(p => {
-      // Personali: is_owner E non condivise
-      const isMyPersonal = p.is_owner && !p.is_shared;
-      // Condivise: is_shared = true (il server restituisce solo quelle accessibili)
-      const isSharedWithMe = p.is_shared;
-      return isMyPersonal || isSharedWithMe;
-    });
+    // Il server già restituisce solo le password accessibili all'utente,
+    // non serve filtrare nuovamente lato client
+    // (questo era il bug che escludeva alcune password per i manager)
+    state.accessiblePasswords = state.passwords;
     
     // Separa password personali e condivise
     // Personali: create dall'utente e NON condivise con altri
-    state.personalPasswords = state.accessiblePasswords.filter(p => p.is_owner && !p.is_shared);
+    state.personalPasswords = state.passwords.filter(p => p.is_owner && !p.is_shared);
     // Condivise: esplicitamente marcate come condivise (is_shared = true)
-    state.sharedPasswords = state.accessiblePasswords.filter(p => p.is_shared);
+    state.sharedPasswords = state.passwords.filter(p => p.is_shared);
     
     // Filtra in base alla tab corrente
     updatePasswordList();
