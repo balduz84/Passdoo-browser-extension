@@ -17,11 +17,13 @@ let state = {
   filteredPasswords: [],
   personalPasswords: [],
   sharedPasswords: [],
+  urlMatchingPasswords: [], // Password che matchano l'URL corrente
   currentPassword: null,
   currentTab: 'all',
   currentUrl: null,
   isLoading: false,
-  clientFilter: null  // Filtro per cliente: { id, name }
+  clientFilter: null,  // Filtro per cliente: { id, name }
+  urlFilterActive: false  // Flag per indicare se il filtro URL è attivo
 };
 
 // Elementi DOM
@@ -256,6 +258,42 @@ async function loadUserInfo() {
 }
 
 /**
+ * Trova le password che matchano l'URL corrente
+ */
+function findMatchingPasswords() {
+  if (!state.currentUrl || !state.passwords.length) {
+    return [];
+  }
+  
+  try {
+    const currentUrlObj = new URL(state.currentUrl);
+    const currentDomain = currentUrlObj.hostname.replace('www.', '').toLowerCase();
+    
+    return state.passwords.filter(p => {
+      if (!p.uri) return false;
+      
+      try {
+        // Normalizza l'URI della password
+        const passwordUri = p.uri.startsWith('http') ? p.uri : 'https://' + p.uri;
+        const passwordUrlObj = new URL(passwordUri);
+        const passwordDomain = passwordUrlObj.hostname.replace('www.', '').toLowerCase();
+        
+        // Match esatto del dominio o sottodominio
+        return currentDomain === passwordDomain || 
+               currentDomain.endsWith('.' + passwordDomain) ||
+               passwordDomain.endsWith('.' + currentDomain);
+      } catch {
+        // Se l'URI non è un URL valido, prova un match parziale
+        const normalizedUri = p.uri.toLowerCase().replace('www.', '');
+        return currentDomain.includes(normalizedUri) || normalizedUri.includes(currentDomain);
+      }
+    });
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Carica le password
  */
 async function loadPasswords(forceRefresh = false) {
@@ -284,6 +322,18 @@ async function loadPasswords(forceRefresh = false) {
     // - "Condivise": ho accesso ma non sono owner
     state.personalPasswords = state.passwords.filter(p => p.is_owner);
     state.sharedPasswords = state.passwords.filter(p => !p.is_owner);
+    
+    // Trova password che matchano l'URL corrente
+    state.urlMatchingPasswords = findMatchingPasswords();
+    
+    // Se ci sono password che matchano l'URL, attiva automaticamente il filtro
+    if (state.urlMatchingPasswords.length > 0) {
+      state.urlFilterActive = true;
+      state.filteredPasswords = state.urlMatchingPasswords;
+      showUrlFilterIndicator();
+    } else {
+      state.urlFilterActive = false;
+    }
     
     // Filtra in base alla tab corrente
     updatePasswordList();
@@ -316,10 +366,17 @@ function updatePasswordList() {
   let basePersonal = state.personalPasswords;
   let baseShared = state.sharedPasswords;
   
+  // Se il filtro URL è attivo e non c'è ricerca manuale, usa le password matching
+  if (state.urlFilterActive && !elements.searchInput.value) {
+    basePasswords = state.urlMatchingPasswords;
+    basePersonal = state.urlMatchingPasswords.filter(p => p.is_owner);
+    baseShared = state.urlMatchingPasswords.filter(p => !p.is_owner);
+  }
+  
   if (state.clientFilter) {
-    basePasswords = state.accessiblePasswords.filter(p => p.partner_id === state.clientFilter.id);
-    basePersonal = state.personalPasswords.filter(p => p.partner_id === state.clientFilter.id);
-    baseShared = state.sharedPasswords.filter(p => p.partner_id === state.clientFilter.id);
+    basePasswords = basePasswords.filter(p => p.partner_id === state.clientFilter.id);
+    basePersonal = basePersonal.filter(p => p.partner_id === state.clientFilter.id);
+    baseShared = baseShared.filter(p => p.partner_id === state.clientFilter.id);
   }
   
   // Applica anche il filtro di ricerca se presente
@@ -366,8 +423,12 @@ function updatePasswordList() {
   
   elements.emptyState.style.display = 'none';
   
-  // Se c'è filtro cliente, mostra solo le categorie (senza raggruppamento per cliente)
-  if (state.clientFilter) {
+  // Se c'è filtro URL attivo e poche password, mostra lista semplice
+  if (state.urlFilterActive && !elements.searchInput.value && passwordsToShow.length <= 10) {
+    const categoriesHtml = renderCategoriesOnly(passwordsToShow);
+    elements.passwordList.innerHTML = categoriesHtml;
+  } else if (state.clientFilter) {
+    // Se c'è filtro cliente, mostra solo le categorie (senza raggruppamento per cliente)
     const categoriesHtml = renderCategoriesOnly(passwordsToShow);
     elements.passwordList.innerHTML = categoriesHtml;
   } else {
@@ -512,6 +573,70 @@ function showClientFilterBar(clientName) {
  */
 function hideClientFilterBar() {
   const filterBar = document.getElementById('client-filter-bar');
+  if (filterBar) {
+    filterBar.style.display = 'none';
+  }
+}
+
+/**
+ * Mostra l'indicatore del filtro URL attivo
+ */
+function showUrlFilterIndicator() {
+  let filterBar = document.getElementById('url-filter-bar');
+  
+  if (!filterBar) {
+    // Crea la barra se non esiste
+    filterBar = document.createElement('div');
+    filterBar.id = 'url-filter-bar';
+    filterBar.className = 'url-filter-bar';
+    
+    // Inseriscila dopo i tab
+    const tabNav = document.querySelector('.tab-nav');
+    tabNav.parentNode.insertBefore(filterBar, tabNav.nextSibling);
+  }
+  
+  // Estrai il dominio dall'URL corrente
+  let domain = 'questo sito';
+  try {
+    const url = new URL(state.currentUrl);
+    domain = url.hostname.replace('www.', '');
+  } catch {}
+  
+  filterBar.innerHTML = `
+    <div class="filter-info">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="2" y1="12" x2="22" y2="12"></line>
+        <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+      </svg>
+      <span>Password per <strong>${escapeHtml(domain)}</strong> (${state.urlMatchingPasswords.length})</span>
+    </div>
+    <button id="btn-show-all-passwords" class="filter-show-all-btn" title="Mostra tutte">
+      Mostra tutte
+    </button>
+  `;
+  
+  filterBar.style.display = 'flex';
+  
+  // Aggiungi event listener per mostrare tutte le password
+  document.getElementById('btn-show-all-passwords').addEventListener('click', clearUrlFilter);
+}
+
+/**
+ * Rimuove il filtro URL
+ */
+function clearUrlFilter() {
+  state.urlFilterActive = false;
+  state.filteredPasswords = [];
+  hideUrlFilterBar();
+  updatePasswordList();
+}
+
+/**
+ * Nascondi la barra del filtro URL
+ */
+function hideUrlFilterBar() {
+  const filterBar = document.getElementById('url-filter-bar');
   if (filterBar) {
     filterBar.style.display = 'none';
   }
@@ -776,11 +901,14 @@ function renderCategoriesOnly(passwords) {
   
   const categoryList = Object.values(categories).sort((a, b) => a.name.localeCompare(b.name));
   
+  // Se il filtro URL è attivo, non collassare le categorie
+  const collapsedClass = state.urlFilterActive ? '' : 'collapsed';
+  
   let html = '';
   categoryList.forEach(category => {
     const categoryIcon = getCategoryIcon(category.key);
     html += `
-      <div class="category-group collapsed category-group-standalone">
+      <div class="category-group ${collapsedClass} category-group-standalone">
         <div class="category-group-header" data-category="${escapeHtml(category.key)}">
           <div class="category-icon">${categoryIcon}</div>
           <div class="category-name">${escapeHtml(category.name)}</div>
@@ -942,6 +1070,9 @@ function handleSearch() {
   elements.btnClearSearch.style.display = query ? 'flex' : 'none';
   
   if (query) {
+    // Quando c'è ricerca, nascondi la barra del filtro URL
+    hideUrlFilterBar();
+    
     state.filteredPasswords = state.passwords.filter(p => 
       p.name.toLowerCase().includes(query) ||
       (p.username && p.username.toLowerCase().includes(query)) ||
@@ -954,6 +1085,13 @@ function handleSearch() {
     }
   } else {
     state.filteredPasswords = [];
+    
+    // Se ci sono password matching, riattiva il filtro URL
+    if (state.urlMatchingPasswords.length > 0) {
+      state.urlFilterActive = true;
+      state.filteredPasswords = state.urlMatchingPasswords;
+      showUrlFilterIndicator();
+    }
   }
   
   updatePasswordList();
@@ -966,6 +1104,14 @@ function clearSearch() {
   elements.searchInput.value = '';
   elements.btnClearSearch.style.display = 'none';
   state.filteredPasswords = [];
+  
+  // Se ci sono password matching, riattiva il filtro URL
+  if (state.urlMatchingPasswords.length > 0) {
+    state.urlFilterActive = true;
+    state.filteredPasswords = state.urlMatchingPasswords;
+    showUrlFilterIndicator();
+  }
+  
   updatePasswordList();
 }
 
@@ -1240,12 +1386,57 @@ async function showAddPasswordView() {
     } catch (e) {}
   }
   
-  // Carica i clienti
-  await loadClients();
+  // Carica clienti e categorie in parallelo
+  await Promise.all([loadClients(), loadCategories()]);
   
   // Mostra la vista
   hideAllViews();
   elements.viewAddPassword.style.display = 'block';
+}
+
+/**
+ * Carica la lista delle categorie nel dropdown
+ */
+async function loadCategories() {
+  try {
+    const response = await sendMessage({ action: 'getCategories' });
+    const categories = (response && response.categories) ? response.categories : [];
+    
+    // Svuota e ricompila il dropdown
+    elements.addCategory.innerHTML = '';
+    
+    if (categories.length === 0) {
+      // Fallback a categorie default se l'API non restituisce nulla
+      const defaultCategories = [
+        { id: 'web', label: 'Sito Web' },
+        { id: 'database', label: 'Database' },
+        { id: 'server', label: 'Server' },
+        { id: 'application', label: 'Applicazione' },
+        { id: 'email', label: 'Email' },
+        { id: 'other', label: 'Altro' }
+      ];
+      defaultCategories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = cat.label;
+        elements.addCategory.appendChild(option);
+      });
+    } else {
+      categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id || cat.value;
+        option.textContent = cat.label || cat.name;
+        elements.addCategory.appendChild(option);
+      });
+    }
+  } catch (error) {
+    console.error('Error loading categories:', error);
+    // In caso di errore, mostra categorie di fallback
+    elements.addCategory.innerHTML = `
+      <option value="web">Sito Web</option>
+      <option value="other">Altro</option>
+    `;
+  }
 }
 
 /**
@@ -1447,12 +1638,15 @@ async function handleSavePassword(event) {
   elements.btnSavePassword.innerHTML = '<span class="spinner-small"></span> Salvataggio...';
   
   try {
+    const categoryValue = elements.addCategory.value;
     const passwordData = {
       name: name,
       username: elements.addUsername.value.trim(),
       password: password,
       uri: elements.addUri.value.trim(),
-      category: elements.addCategory.value,
+      // Invia category_id se è numerico, altrimenti category come fallback
+      category_id: !isNaN(categoryValue) ? parseInt(categoryValue) : null,
+      category: isNaN(categoryValue) ? categoryValue : null,
       description: elements.addDescription.value.trim()
     };
     

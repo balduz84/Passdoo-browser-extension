@@ -84,6 +84,9 @@ async function handleMessage(message, sender) {
     case 'getClients':
       return await getClients();
     
+    case 'getCategories':
+      return await getCategories();
+    
     case 'getClientGroups':
       return await getClientGroups(message.partnerId);
     
@@ -482,6 +485,27 @@ async function getClients() {
     console.error('Passdoo: Get clients error', error);
     // In caso di errore API, restituisci lista vuota
     return { clients: [] };
+  }
+}
+
+/**
+ * Ottiene la lista delle categorie
+ */
+async function getCategories() {
+  try {
+    const session = await storage.getSession();
+    
+    if (!session || !session.token) {
+      // Se non autenticato, restituisce lista vuota
+      return { categories: [] };
+    }
+    
+    const categories = await api.getCategories(session.token);
+    return { categories: categories || [] };
+  } catch (error) {
+    console.error('Passdoo: Get categories error', error);
+    // In caso di errore API, restituisci lista vuota
+    return { categories: [] };
   }
 }
 

@@ -200,16 +200,7 @@
                     <div class="form-group">
                         <label for="add-category">Categoria</label>
                         <select id="add-category">
-                            <option value="web">Sito Web</option>
-                            <option value="database">Database</option>
-                            <option value="server">Server</option>
-                            <option value="application">Applicazione</option>
-                            <option value="email">Email</option>
-                            <option value="social">Social Media</option>
-                            <option value="banking">Banking</option>
-                            <option value="vpn">VPN/Remote</option>
-                            <option value="wifi">WiFi</option>
-                            <option value="other">Altro</option>
+                            <option value="">Caricamento...</option>
                         </select>
                     </div>
                     
@@ -332,39 +323,42 @@
         <div id="about-modal" class="about-modal" style="display: none;">
             <div id="about-modal-backdrop" class="about-modal-backdrop"></div>
             <div class="about-modal-content">
-                <button id="about-close-btn" class="about-close-btn" title="Chiudi">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-                <div class="about-logo">
-                    <img src="../icons/icon-128.png" alt="Passdoo" width="80" height="80">
-                </div>
-                <h2 class="about-title">Passdoo</h2>
-                <p class="about-subtitle">Browser Extension</p>
-                <p class="about-version" id="about-version">Versione ...</p>
-                <div class="about-description">
-                    <p>Password Manager integrato con ODOO per la gestione sicura delle credenziali aziendali.</p>
-                </div>
-                <div class="about-links">
-                    <a href="https://www.novacs.net" target="_blank" class="about-link">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="10"></circle>
-                            <line x1="2" y1="12" x2="22" y2="12"></line>
-                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                <div class="about-modal-header">
+                    <h2>Informazioni</h2>
+                    <button id="about-close-btn" class="about-close-btn" title="Chiudi">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
                         </svg>
-                        www.novacs.net
-                    </a>
-                    <a href="mailto:support@novacs.net" class="about-link">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                            <polyline points="22,6 12,13 2,6"></polyline>
-                        </svg>
-                        support@novacs.net
-                    </a>
+                    </button>
                 </div>
-                <p class="about-copyright">© 2025 NovaCS S.r.l. - Tutti i diritti riservati</p>
+                <div class="about-body">
+                    <div class="about-logo">
+                        <img src="../icons/icon-128.png" alt="Passdoo" width="80" height="80">
+                    </div>
+                    <h3 class="about-title">Passdoo</h3>
+                    <p class="about-subtitle">Browser Extension</p>
+                    <p class="about-version" id="about-version">Versione ...</p>
+                    <div class="about-info">
+                        <div class="about-row about-row-centered">
+                            <span class="about-value">Silvio Balduzzi - NovaCS S.r.l.</span>
+                        </div>
+                        <div class="about-row">
+                            <span class="about-label">Sito Web</span>
+                            <a href="https://www.novacs.net" target="_blank" class="about-link-value">www.novacs.net</a>
+                        </div>
+                        <div class="about-row">
+                            <span class="about-label">Supporto</span>
+                            <a href="mailto:support@novacs.net" class="about-link-value">support@novacs.net</a>
+                        </div>
+                    </div>
+                    <p class="about-description">
+                        Passdoo è un gestore di password sicuro e moderno, 
+                        progettato per semplificare la gestione delle credenziali 
+                        aziendali con autenticazione Microsoft Entra ID.
+                    </p>
+                    <p class="about-copyright">© 2025 NovaCS S.r.l. - Tutti i diritti riservati</p>
+                </div>
             </div>
         </div>
 

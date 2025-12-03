@@ -273,6 +273,19 @@ export class PassdooAPI {
   }
 
   /**
+   * Ottiene la lista delle categorie disponibili
+   */
+  async getCategories(token) {
+    try {
+      const result = await this.request('/passdoo/api/extension/categories', 'GET', null, token);
+      return result.categories || [];
+    } catch (error) {
+      console.warn('Passdoo API: getCategories failed, returning empty list', error.message);
+      return [];
+    }
+  }
+
+  /**
    * Ottiene i gruppi di permesso disponibili per un cliente
    * Restituisce i gruppi con il livello massimo di permesso che l'utente può assegnare
    */
