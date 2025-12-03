@@ -1150,18 +1150,23 @@ body {
 
 .group-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   background: var(--bg-color);
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  padding: 8px 10px;
-  gap: 10px;
+  padding: 10px 12px;
+  gap: 8px;
 }
 
 .group-item.is-owner {
   background: var(--primary-lighter);
   border-color: var(--primary-color);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .group-info {
@@ -1206,15 +1211,14 @@ body {
 }
 
 .group-access-select {
-  width: 120px;
-  padding: 4px 8px;
+  width: 100%;
+  padding: 6px 10px;
   font-size: 12px;
   border: 1px solid var(--border-color);
   border-radius: 4px;
   background: var(--bg-color);
   color: var(--text-primary);
   cursor: pointer;
-  flex-shrink: 0;
 }
 
 .group-access-select:disabled {

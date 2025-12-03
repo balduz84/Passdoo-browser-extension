@@ -1497,8 +1497,6 @@ async function handleClientChange() {
       return;
     }
     
-    console.log('Loaded groups for client:', { groups, maxPermission });
-    
     // Renderizza i gruppi con il livello massimo di permesso dell'utente
     renderGroupsList(groups, maxPermission);
   } catch (error) {
@@ -1511,11 +1509,9 @@ async function handleClientChange() {
  * Renderizza la lista dei gruppi con checkbox e select per i permessi
  */
 function renderGroupsList(groups, maxUserPermission = 'read') {
-  console.log('Rendering groups:', groups, 'maxUserPermission:', maxUserPermission);
   elements.groupsList.innerHTML = '';
   
   groups.forEach(group => {
-    console.log('Processing group:', group);
     // Usa il flag is_owner_group dal backend
     const isOwner = group.is_owner_group === true;
     const div = document.createElement('div');
@@ -1525,7 +1521,7 @@ function renderGroupsList(groups, maxUserPermission = 'read') {
     if (isOwner) {
       // Gruppo proprietario - sempre attivo con write
       div.innerHTML = `
-        <div class="group-info">
+        <div class="group-header">
           <input type="checkbox" class="group-checkbox" checked disabled data-group-id="${group.id}">
           <span class="group-name">${escapeHtml(group.name)}</span>
           <span class="group-owner-badge">Proprietario</span>
@@ -1538,7 +1534,7 @@ function renderGroupsList(groups, maxUserPermission = 'read') {
       // Altri gruppi - l'utente può assegnare al massimo il suo livello di permesso
       const canAssignWrite = maxUserPermission === 'write';
       div.innerHTML = `
-        <div class="group-info">
+        <div class="group-header">
           <input type="checkbox" class="group-checkbox" data-group-id="${group.id}">
           <span class="group-name">${escapeHtml(group.name)}</span>
         </div>
