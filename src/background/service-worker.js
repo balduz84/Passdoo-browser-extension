@@ -1,6 +1,6 @@
 /**
  * Passdoo Browser Extension - Service Worker
- * Gestisce l'autenticazione con ODOO/Entra ID e la comunicazione con l'API
+ * Gestisce l'autenticazione con ODOO tramite token persistente (come app desktop)
  */
 
 import { PassdooAPI } from './api/passdoo-api.js';
@@ -10,7 +10,7 @@ import { StorageService } from './api/storage-service.js';
 // Configurazione
 const CONFIG = {
   ODOO_URL: 'https://portal.novacs.net',
-  SESSION_TIMEOUT_MINUTES: 30,
+  TOKEN_VALID_DAYS: 90,  // Token valido 90 giorni
   CACHE_DURATION_MINUTES: 5
 };
 
@@ -102,7 +102,7 @@ async function handleMessage(message, sender) {
 }
 
 /**
- * Gestisce il login tramite ODOO/Entra ID
+ * Gestisce il login tramite ODOO - genera token persistente
  */
 async function handleLogin() {
   try {
@@ -126,15 +126,13 @@ async function handleLogin() {
             chrome.tabs.onUpdated.removeListener(listener);
             
             try {
-              // Estrai il token dalla URL
+              // Estrai il token dalla URL (nuovo sistema)
               const url = new URL(changeInfo.url);
-              const sessionId = url.searchParams.get('session_id');
               const token = url.searchParams.get('token');
               
-              if (sessionId || token) {
-                // Salva le credenziali
+              if (token) {
+                // Salva il token persistente
                 await storage.setSession({
-                  sessionId,
                   token,
                   timestamp: Date.now()
                 });
@@ -142,36 +140,35 @@ async function handleLogin() {
                 // Chiudi la finestra di login
                 await chrome.windows.remove(popup.id);
                 
-                resolve({ success: true });
-              } else {
-                reject(new Error('Autenticazione fallita'));
-              }
-            } catch (error) {
-              reject(error);
-            }
-          } else if (changeInfo.url.includes('/web#') || changeInfo.url === `${CONFIG.ODOO_URL}/web`) {
-            // Login completato, ma dobbiamo ottenere il token
-            chrome.tabs.onUpdated.removeListener(listener);
-            
-            try {
-              // Ottieni il session_id dal cookie
-              const cookies = await chrome.cookies.getAll({ domain: new URL(CONFIG.ODOO_URL).hostname });
-              const sessionCookie = cookies.find(c => c.name === 'session_id');
-              
-              if (sessionCookie) {
-                await storage.setSession({
-                  sessionId: sessionCookie.value,
-                  timestamp: Date.now()
-                });
-                
-                await chrome.windows.remove(popup.id);
-                
                 // Aggiorna il badge dopo il login
                 await updateBadgeForCurrentTab().catch(() => {});
                 
                 resolve({ success: true });
               } else {
-                reject(new Error('Cookie di sessione non trovato'));
+                // Aspetta un po' e riprova - il token potrebbe essere aggiunto via JS
+                setTimeout(async () => {
+                  try {
+                    // Rileggi l'URL
+                    const tabs = await chrome.tabs.query({ windowId: popup.id });
+                    if (tabs.length > 0) {
+                      const currentUrl = new URL(tabs[0].url);
+                      const retryToken = currentUrl.searchParams.get('token');
+                      if (retryToken) {
+                        await storage.setSession({
+                          token: retryToken,
+                          timestamp: Date.now()
+                        });
+                        await chrome.windows.remove(popup.id);
+                        await updateBadgeForCurrentTab().catch(() => {});
+                        resolve({ success: true });
+                      } else {
+                        reject(new Error('Token non ricevuto'));
+                      }
+                    }
+                  } catch (e) {
+                    reject(new Error('Autenticazione fallita'));
+                  }
+                }, 1000);
               }
             } catch (error) {
               reject(error);
@@ -195,10 +192,17 @@ async function handleLogin() {
 }
 
 /**
- * Gestisce il logout
+ * Gestisce il logout - invalida token sul server
  */
 async function handleLogout() {
   try {
+    const session = await storage.getSession();
+    
+    // Invalida il token sul server
+    if (session && session.token) {
+      await api.logout(session.token).catch(() => {});
+    }
+    
     await storage.clearSession();
     passwordCache = null;
     cacheTimestamp = null;
@@ -234,21 +238,13 @@ async function checkAuthStatus() {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       return { isAuthenticated: false };
     }
     
-    // Verifica che la sessione non sia scaduta
-    const sessionAge = Date.now() - session.timestamp;
-    const maxAge = CONFIG.SESSION_TIMEOUT_MINUTES * 60 * 1000;
-    
-    if (sessionAge > maxAge) {
-      await storage.clearSession();
-      return { isAuthenticated: false };
-    }
-    
-    // Verifica con il server
-    const isValid = await api.validateSession(session.sessionId);
+    // Il token è valido per 90 giorni, ma verifichiamo comunque con il server
+    // per assicurarci che non sia stato revocato
+    const isValid = await api.validateToken(session.token);
     
     if (!isValid) {
       await storage.clearSession();
@@ -269,7 +265,7 @@ async function getPasswords(search = '', forceRefresh = false) {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       throw new Error('Non autenticato');
     }
     
@@ -296,7 +292,7 @@ async function getPasswords(search = '', forceRefresh = false) {
     }
     
     // Ottieni le password dal server
-    const passwords = await api.getPasswords(session.sessionId);
+    const passwords = await api.getPasswords(session.token);
     
     // Aggiorna la cache
     passwordCache = passwords;
@@ -327,11 +323,11 @@ async function getPasswordById(id) {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       throw new Error('Non autenticato');
     }
     
-    const password = await api.getPassword(session.sessionId, id);
+    const password = await api.getPassword(session.token, id);
     return { password };
   } catch (error) {
     console.error('Passdoo: Get password error', error);
@@ -346,7 +342,7 @@ async function getPasswordsByUrl(url) {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       return { passwords: [] };
     }
     
@@ -427,11 +423,11 @@ async function getUserInfo() {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       throw new Error('Non autenticato');
     }
     
-    const userInfo = await api.getUserInfo(session.sessionId);
+    const userInfo = await api.getUserInfo(session.token);
     return { user: userInfo };
   } catch (error) {
     console.error('Passdoo: Get user info error', error);
@@ -446,12 +442,12 @@ async function getClients() {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       // Se non autenticato, restituisce lista vuota invece di errore
       return { clients: [] };
     }
     
-    const clients = await api.getClients(session.sessionId);
+    const clients = await api.getClients(session.token);
     return { clients: clients || [] };
   } catch (error) {
     console.error('Passdoo: Get clients error', error);
@@ -467,7 +463,7 @@ async function getClientGroups(partnerId) {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       throw new Error('Non autenticato');
     }
     
@@ -475,7 +471,7 @@ async function getClientGroups(partnerId) {
       return { groups: [] };
     }
     
-    const groups = await api.getClientGroups(session.sessionId, partnerId);
+    const groups = await api.getClientGroups(session.token, partnerId);
     return { groups: groups || [] };
   } catch (error) {
     console.error('Passdoo: Get client groups error', error);
@@ -490,11 +486,11 @@ async function createPassword(passwordData) {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       throw new Error('Non autenticato');
     }
     
-    const password = await api.createPassword(session.sessionId, passwordData);
+    const password = await api.createPassword(session.token, passwordData);
     
     // Invalida la cache
     passwordCache = null;
@@ -550,7 +546,7 @@ async function saveCredentials(credentials) {
   try {
     const session = await storage.getSession();
     
-    if (!session || !session.sessionId) {
+    if (!session || !session.token) {
       // Memorizza temporaneamente per salvare dopo il login
       await storage.setPendingCredentials(credentials);
       return { pending: true };
@@ -565,7 +561,7 @@ async function saveCredentials(credentials) {
       category: 'web'
     };
     
-    const password = await api.createPassword(session.sessionId, passwordData);
+    const password = await api.createPassword(session.token, passwordData);
     
     // Invalida la cache
     passwordCache = null;

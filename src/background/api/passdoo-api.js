@@ -1,6 +1,7 @@
 /**
  * Passdoo Browser Extension - API Client per ODOO
  * Gestisce tutte le chiamate API verso il server ODOO/Passdoo
+ * Usa autenticazione token Bearer (come app desktop)
  */
 
 // Versione dell'estensione (letta dal manifest)
@@ -12,9 +13,9 @@ export class PassdooAPI {
   }
 
   /**
-   * Esegue una chiamata API a ODOO
+   * Esegue una chiamata API a ODOO con token Bearer
    */
-  async request(endpoint, method = 'GET', data = null, sessionId = null) {
+  async request(endpoint, method = 'GET', data = null, token = null) {
     const url = `${this.baseUrl}${endpoint}`;
     
     const headers = {
@@ -24,15 +25,15 @@ export class PassdooAPI {
       'X-Client-Version': EXTENSION_VERSION
     };
     
-    // Aggiungi il session ID se presente
-    if (sessionId) {
-      headers['X-Passdoo-Session'] = sessionId;
+    // Usa token Bearer per l'autenticazione
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
     
     const options = {
       method,
       headers,
-      credentials: 'include'
+      credentials: 'omit'  // Non inviare cookie, usiamo solo token
     };
     
     if (data && (method === 'POST' || method === 'PUT' || method === 'PATCH')) {
@@ -54,7 +55,7 @@ export class PassdooAPI {
       
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Sessione scaduta o non valida');
+          throw new Error('Token non valido o scaduto');
         }
         if (response.status === 403) {
           throw new Error('Accesso negato');
@@ -72,11 +73,11 @@ export class PassdooAPI {
   }
 
   /**
-   * Valida la sessione corrente
+   * Valida il token corrente
    */
-  async validateSession(sessionId) {
+  async validateToken(token) {
     try {
-      const result = await this.request('/passdoo/api/extension/validate', 'GET', null, sessionId);
+      const result = await this.request('/passdoo/api/extension/validate', 'GET', null, token);
       return result.valid === true;
     } catch {
       return false;
@@ -86,51 +87,51 @@ export class PassdooAPI {
   /**
    * Ottiene la lista delle password accessibili all'utente
    */
-  async getPasswords(sessionId) {
-    const result = await this.request('/passdoo/api/extension/passwords', 'GET', null, sessionId);
+  async getPasswords(token) {
+    const result = await this.request('/passdoo/api/extension/passwords', 'GET', null, token);
     return result.passwords || [];
   }
 
   /**
    * Ottiene una password specifica con la password decifrata
    */
-  async getPassword(sessionId, passwordId) {
-    const result = await this.request(`/passdoo/api/extension/password/${passwordId}`, 'GET', null, sessionId);
+  async getPassword(token, passwordId) {
+    const result = await this.request(`/passdoo/api/extension/password/${passwordId}`, 'GET', null, token);
     return result.password;
   }
 
   /**
    * Cerca password per URL
    */
-  async searchPasswordsByUrl(sessionId, url) {
-    const result = await this.request('/passdoo/api/extension/passwords/search', 'POST', { url }, sessionId);
+  async searchPasswordsByUrl(token, url) {
+    const result = await this.request('/passdoo/api/extension/passwords/search', 'POST', { url }, token);
     return result.passwords || [];
   }
 
   /**
    * Ottiene le informazioni dell'utente corrente
    */
-  async getUserInfo(sessionId) {
-    const result = await this.request('/passdoo/api/extension/user', 'GET', null, sessionId);
+  async getUserInfo(token) {
+    const result = await this.request('/passdoo/api/extension/user', 'GET', null, token);
     return result.user;
   }
 
   /**
    * Registra un accesso alla password (per audit)
    */
-  async logPasswordAccess(sessionId, passwordId, action) {
+  async logPasswordAccess(token, passwordId, action) {
     await this.request('/passdoo/api/extension/audit', 'POST', {
       password_id: passwordId,
       action: action
-    }, sessionId);
+    }, token);
   }
 
   /**
    * Verifica se l'utente ha accesso a una password specifica
    */
-  async checkPasswordAccess(sessionId, passwordId) {
+  async checkPasswordAccess(token, passwordId) {
     try {
-      const result = await this.request(`/passdoo/api/extension/password/${passwordId}/access`, 'GET', null, sessionId);
+      const result = await this.request(`/passdoo/api/extension/password/${passwordId}/access`, 'GET', null, token);
       return result.has_access === true;
     } catch {
       return false;
@@ -140,16 +141,16 @@ export class PassdooAPI {
   /**
    * Ottiene le categorie delle password
    */
-  async getCategories(sessionId) {
-    const result = await this.request('/passdoo/api/extension/categories', 'GET', null, sessionId);
+  async getCategories(token) {
+    const result = await this.request('/passdoo/api/extension/categories', 'GET', null, token);
     return result.categories || [];
   }
 
   /**
    * Cerca password per parola chiave
    */
-  async searchPasswords(sessionId, query) {
-    const result = await this.request('/passdoo/api/extension/passwords/search', 'POST', { query }, sessionId);
+  async searchPasswords(token, query) {
+    const result = await this.request('/passdoo/api/extension/passwords/search', 'POST', { query }, token);
     return result.passwords || [];
   }
 
@@ -157,7 +158,7 @@ export class PassdooAPI {
   /**
    * Genera una password sicura
    */
-  async generatePassword(sessionId, options = {}) {
+  async generatePassword(token, options = {}) {
     const defaultOptions = {
       length: 16,
       uppercase: true,
@@ -167,32 +168,32 @@ export class PassdooAPI {
     };
     
     const result = await this.request('/passdoo/api/extension/generate-password', 'POST', 
-      { ...defaultOptions, ...options }, sessionId);
+      { ...defaultOptions, ...options }, token);
     return result.password;
   }
 
   /**
    * Salva una nuova password
    */
-  async createPassword(sessionId, passwordData) {
-    const result = await this.request('/passdoo/api/extension/passwords', 'POST', passwordData, sessionId);
+  async createPassword(token, passwordData) {
+    const result = await this.request('/passdoo/api/extension/passwords', 'POST', passwordData, token);
     return result.password;
   }
 
   /**
    * Aggiorna una password esistente
    */
-  async updatePassword(sessionId, passwordId, passwordData) {
-    const result = await this.request(`/passdoo/api/extension/password/${passwordId}`, 'PUT', passwordData, sessionId);
+  async updatePassword(token, passwordId, passwordData) {
+    const result = await this.request(`/passdoo/api/extension/password/${passwordId}`, 'PUT', passwordData, token);
     return result.password;
   }
 
   /**
    * Ottiene la lista dei clienti accessibili
    */
-  async getClients(sessionId) {
+  async getClients(token) {
     try {
-      const result = await this.request('/passdoo/api/extension/clients', 'GET', null, sessionId);
+      const result = await this.request('/passdoo/api/extension/clients', 'GET', null, token);
       return result.clients || [];
     } catch (error) {
       console.warn('Passdoo API: getClients failed, returning empty list', error.message);
@@ -204,13 +205,26 @@ export class PassdooAPI {
    * Ottiene i gruppi di permesso disponibili per un cliente
    * Restituisce i gruppi con il livello massimo di permesso che l'utente può assegnare
    */
-  async getClientGroups(sessionId, partnerId) {
+  async getClientGroups(token, partnerId) {
     try {
-      const result = await this.request(`/passdoo/api/extension/client/${partnerId}/groups`, 'GET', null, sessionId);
+      const result = await this.request(`/passdoo/api/extension/client/${partnerId}/groups`, 'GET', null, token);
       return result.groups || [];
     } catch (error) {
       console.warn('Passdoo API: getClientGroups failed', error.message);
       return [];
+    }
+  }
+
+  /**
+   * Invalida il token (logout)
+   */
+  async logout(token) {
+    try {
+      await this.request('/passdoo/api/extension/logout', 'POST', null, token);
+      return true;
+    } catch (error) {
+      console.warn('Passdoo API: logout failed', error.message);
+      return false;
     }
   }
 }
