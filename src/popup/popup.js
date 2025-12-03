@@ -253,15 +253,14 @@ async function loadPasswords(forceRefresh = false) {
     state.passwords = response.passwords || [];
     
     // Il server già restituisce solo le password accessibili all'utente,
-    // non serve filtrare nuovamente lato client
-    // (questo era il bug che escludeva alcune password per i manager)
+    // filtrate in base ai gruppi di permesso
     state.accessiblePasswords = state.passwords;
     
-    // Separa password personali e condivise
-    // Personali: create dall'utente e NON condivise con altri
-    state.personalPasswords = state.passwords.filter(p => p.is_owner && !p.is_shared);
-    // Condivise: esplicitamente marcate come condivise (is_shared = true)
-    state.sharedPasswords = state.passwords.filter(p => p.is_shared);
+    // Separa password in base al ruolo:
+    // - "Mie": sono owner (nel gruppo owner_group)
+    // - "Condivise": ho accesso ma non sono owner
+    state.personalPasswords = state.passwords.filter(p => p.is_owner);
+    state.sharedPasswords = state.passwords.filter(p => !p.is_owner);
     
     // Filtra in base alla tab corrente
     updatePasswordList();
@@ -281,18 +280,20 @@ function updatePasswordList() {
   let passwordsToShow = [];
   
   if (state.currentTab === 'personal') {
+    // Tab "Mie": password dove sono owner
     passwordsToShow = state.filteredPasswords.length > 0 || elements.searchInput.value 
-      ? state.filteredPasswords.filter(p => p.is_owner && !p.is_shared)
+      ? state.filteredPasswords.filter(p => p.is_owner)
       : state.personalPasswords;
     if (passwordsToShow.length === 0) {
-      elements.emptyMessage.textContent = 'Nessuna password personale trovata';
+      elements.emptyMessage.textContent = 'Nessuna password di cui sei owner';
     }
   } else if (state.currentTab === 'shared') {
+    // Tab "Condivise": password dove non sono owner ma ho accesso
     passwordsToShow = state.filteredPasswords.length > 0 || elements.searchInput.value 
-      ? state.filteredPasswords.filter(p => p.is_shared)
+      ? state.filteredPasswords.filter(p => !p.is_owner)
       : state.sharedPasswords;
     if (passwordsToShow.length === 0) {
-      elements.emptyMessage.textContent = 'Nessuna password condivisa trovata';
+      elements.emptyMessage.textContent = 'Nessuna password condivisa con te';
     }
   } else {
     // Tab "Tutte" - mostra tutte le password accessibili
@@ -475,6 +476,16 @@ function renderGroupedPasswords(grouped) {
 function createPasswordItem(password) {
   const categoryIcon = getCategoryIcon(password.category);
   
+  // Badge permessi: mostra se è owner o il livello di accesso
+  let permissionBadge = '';
+  if (password.is_owner) {
+    permissionBadge = '<span class="permission-badge owner" title="Sei nel gruppo Owner">Owner</span>';
+  } else if (password.access_level === 'write') {
+    permissionBadge = '<span class="permission-badge write" title="Lettura e Scrittura">R/W</span>';
+  } else {
+    permissionBadge = '<span class="permission-badge read" title="Solo Lettura">R</span>';
+  }
+  
   // Crea il link URL se presente
   let urlHtml = '';
   if (password.uri) {
@@ -496,7 +507,10 @@ function createPasswordItem(password) {
         ${categoryIcon}
       </div>
       <div class="password-info">
-        <div class="password-name">${escapeHtml(password.name)}</div>
+        <div class="password-name-row">
+          <span class="password-name">${escapeHtml(password.name)}</span>
+          ${permissionBadge}
+        </div>
         <div class="password-username">${escapeHtml(password.username || '')}</div>
         ${urlHtml}
       </div>
