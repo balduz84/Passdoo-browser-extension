@@ -1490,14 +1490,17 @@ async function handleClientChange() {
       partnerId: parseInt(clientId) 
     });
     const groups = (response && response.groups) ? response.groups : [];
+    const maxPermission = response.max_permission || 'read';
     
     if (groups.length === 0) {
       elements.groupsList.innerHTML = '<div class="groups-empty">Nessun gruppo disponibile</div>';
       return;
     }
     
-    // Renderizza i gruppi
-    renderGroupsList(groups);
+    console.log('Loaded groups for client:', { groups, maxPermission });
+    
+    // Renderizza i gruppi con il livello massimo di permesso dell'utente
+    renderGroupsList(groups, maxPermission);
   } catch (error) {
     console.error('Error loading client groups:', error);
     elements.groupsList.innerHTML = '<div class="groups-empty">Errore nel caricamento dei gruppi</div>';
@@ -1507,11 +1510,14 @@ async function handleClientChange() {
 /**
  * Renderizza la lista dei gruppi con checkbox e select per i permessi
  */
-function renderGroupsList(groups) {
+function renderGroupsList(groups, maxUserPermission = 'read') {
+  console.log('Rendering groups:', groups, 'maxUserPermission:', maxUserPermission);
   elements.groupsList.innerHTML = '';
   
   groups.forEach(group => {
-    const isOwner = group.name === 'Amministratore';
+    console.log('Processing group:', group);
+    // Usa il flag is_owner_group dal backend
+    const isOwner = group.is_owner_group === true;
     const div = document.createElement('div');
     div.className = 'group-item' + (isOwner ? ' is-owner' : '');
     div.dataset.groupId = group.id;
@@ -1529,8 +1535,8 @@ function renderGroupsList(groups) {
         </select>
       `;
     } else {
-      // Altri gruppi - checkbox e select basati su max_permission
-      const maxPermission = group.max_permission || 'read';
+      // Altri gruppi - l'utente può assegnare al massimo il suo livello di permesso
+      const canAssignWrite = maxUserPermission === 'write';
       div.innerHTML = `
         <div class="group-info">
           <input type="checkbox" class="group-checkbox" data-group-id="${group.id}">
@@ -1538,7 +1544,7 @@ function renderGroupsList(groups) {
         </div>
         <select class="group-access-select" data-group-id="${group.id}" disabled>
           <option value="read">Solo Lettura</option>
-          ${maxPermission === 'write' ? '<option value="write">Lettura/Scrittura</option>' : ''}
+          ${canAssignWrite ? '<option value="write">Lettura/Scrittura</option>' : ''}
         </select>
       `;
       
