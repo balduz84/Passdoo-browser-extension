@@ -73,6 +73,9 @@ async function handleMessage(message, sender) {
     case 'getClients':
       return await getClients();
     
+    case 'getClientGroups':
+      return await getClientGroups(message.partnerId);
+    
     case 'createPassword':
       return await createPassword(message.passwordData);
     
@@ -443,6 +446,29 @@ async function getClients() {
     console.error('Passdoo: Get clients error', error);
     // In caso di errore API, restituisci lista vuota
     return { clients: [] };
+  }
+}
+
+/**
+ * Ottiene i gruppi di permesso per un cliente
+ */
+async function getClientGroups(partnerId) {
+  try {
+    const session = await storage.getSession();
+    
+    if (!session || !session.sessionId) {
+      throw new Error('Non autenticato');
+    }
+    
+    if (!partnerId) {
+      return { groups: [] };
+    }
+    
+    const groups = await api.getClientGroups(session.sessionId, partnerId);
+    return { groups: groups || [] };
+  } catch (error) {
+    console.error('Passdoo: Get client groups error', error);
+    return { groups: [] };
   }
 }
 

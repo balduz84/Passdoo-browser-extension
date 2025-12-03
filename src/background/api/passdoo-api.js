@@ -184,5 +184,19 @@ export class PassdooAPI {
       return [];
     }
   }
+
+  /**
+   * Ottiene i gruppi di permesso disponibili per un cliente
+   * Restituisce i gruppi con il livello massimo di permesso che l'utente può assegnare
+   */
+  async getClientGroups(sessionId, partnerId) {
+    try {
+      const result = await this.request(`/passdoo/api/extension/client/${partnerId}/groups`, 'GET', null, sessionId);
+      return result.groups || [];
+    } catch (error) {
+      console.warn('Passdoo API: getClientGroups failed', error.message);
+      return [];
+    }
+  }
 }
 

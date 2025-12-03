@@ -63,8 +63,9 @@ function initElements() {
   elements.addUri = document.getElementById('add-uri');
   elements.addClient = document.getElementById('add-client');
   elements.addCategory = document.getElementById('add-category');
-  elements.addShared = document.getElementById('add-shared');
   elements.addDescription = document.getElementById('add-description');
+  elements.groupsSharingSection = document.getElementById('groups-sharing-section');
+  elements.groupsList = document.getElementById('groups-list');
   
   elements.searchInput = document.getElementById('search-input');
   elements.passwordList = document.getElementById('password-list');
@@ -116,6 +117,7 @@ function initEventListeners() {
   elements.formAddPassword.addEventListener('submit', handleSavePassword);
   elements.btnToggleAddPassword.addEventListener('click', toggleAddPasswordVisibility);
   elements.btnGeneratePassword.addEventListener('click', handleGeneratePassword);
+  elements.addClient.addEventListener('change', handleClientChange);
   
   elements.searchInput.addEventListener('input', handleSearch);
   
@@ -878,11 +880,128 @@ async function loadClients() {
       option.textContent = client.name;
       elements.addClient.appendChild(option);
     });
+    
+    // Reset della sezione gruppi
+    elements.groupsSharingSection.style.display = 'none';
+    elements.groupsList.innerHTML = '';
   } catch (error) {
     console.error('Error loading clients:', error);
     // In caso di errore, mostra solo l'opzione default
     elements.addClient.innerHTML = '<option value="">-- Nessun cliente --</option>';
   }
+}
+
+/**
+ * Gestisce il cambio di cliente selezionato
+ */
+async function handleClientChange() {
+  const clientId = elements.addClient.value;
+  
+  if (!clientId) {
+    // Nessun cliente selezionato - nascondi sezione gruppi
+    elements.groupsSharingSection.style.display = 'none';
+    elements.groupsList.innerHTML = '';
+    return;
+  }
+  
+  // Mostra sezione gruppi con loading
+  elements.groupsSharingSection.style.display = 'block';
+  elements.groupsList.innerHTML = '<div class="groups-loading">Caricamento gruppi...</div>';
+  
+  try {
+    const response = await sendMessage({ 
+      action: 'getClientGroups', 
+      partnerId: parseInt(clientId) 
+    });
+    const groups = (response && response.groups) ? response.groups : [];
+    
+    if (groups.length === 0) {
+      elements.groupsList.innerHTML = '<div class="groups-empty">Nessun gruppo disponibile</div>';
+      return;
+    }
+    
+    // Renderizza i gruppi
+    renderGroupsList(groups);
+  } catch (error) {
+    console.error('Error loading client groups:', error);
+    elements.groupsList.innerHTML = '<div class="groups-empty">Errore nel caricamento dei gruppi</div>';
+  }
+}
+
+/**
+ * Renderizza la lista dei gruppi con checkbox e select per i permessi
+ */
+function renderGroupsList(groups) {
+  elements.groupsList.innerHTML = '';
+  
+  groups.forEach(group => {
+    const isOwner = group.name === 'Amministratore';
+    const div = document.createElement('div');
+    div.className = 'group-item' + (isOwner ? ' is-owner' : '');
+    div.dataset.groupId = group.id;
+    
+    if (isOwner) {
+      // Gruppo proprietario - sempre attivo con write
+      div.innerHTML = `
+        <div class="group-info">
+          <input type="checkbox" class="group-checkbox" checked disabled data-group-id="${group.id}">
+          <span class="group-name">${escapeHtml(group.name)}</span>
+          <span class="group-owner-badge">Proprietario</span>
+        </div>
+        <select class="group-access-select" disabled data-group-id="${group.id}">
+          <option value="write" selected>Lettura/Scrittura</option>
+        </select>
+      `;
+    } else {
+      // Altri gruppi - checkbox e select basati su max_permission
+      const maxPermission = group.max_permission || 'read';
+      div.innerHTML = `
+        <div class="group-info">
+          <input type="checkbox" class="group-checkbox" data-group-id="${group.id}">
+          <span class="group-name">${escapeHtml(group.name)}</span>
+        </div>
+        <select class="group-access-select" data-group-id="${group.id}" disabled>
+          <option value="read">Solo Lettura</option>
+          ${maxPermission === 'write' ? '<option value="write">Lettura/Scrittura</option>' : ''}
+        </select>
+      `;
+      
+      // Event listener per abilitare/disabilitare la select
+      const checkbox = div.querySelector('.group-checkbox');
+      const select = div.querySelector('.group-access-select');
+      
+      checkbox.addEventListener('change', () => {
+        select.disabled = !checkbox.checked;
+        if (!checkbox.checked) {
+          select.value = 'read'; // Reset a read quando deselezionato
+        }
+      });
+    }
+    
+    elements.groupsList.appendChild(div);
+  });
+}
+
+/**
+ * Raccoglie i dati dei gruppi selezionati dal form
+ */
+function collectGroupAccess() {
+  const groupAccess = [];
+  
+  const checkboxes = elements.groupsList.querySelectorAll('.group-checkbox:checked:not(:disabled)');
+  checkboxes.forEach(checkbox => {
+    const groupId = parseInt(checkbox.dataset.groupId);
+    const select = elements.groupsList.querySelector(`.group-access-select[data-group-id="${groupId}"]`);
+    
+    if (select && !isNaN(groupId)) {
+      groupAccess.push({
+        group_id: groupId,
+        access_level: select.value
+      });
+    }
+  });
+  
+  return groupAccess;
 }
 
 /**
@@ -949,14 +1068,19 @@ async function handleSavePassword(event) {
       password: password,
       uri: elements.addUri.value.trim(),
       category: elements.addCategory.value,
-      description: elements.addDescription.value.trim(),
-      is_shared: elements.addShared.checked
+      description: elements.addDescription.value.trim()
     };
     
     // Aggiungi il cliente se selezionato
     const clientId = elements.addClient.value;
     if (clientId) {
       passwordData.partner_id = parseInt(clientId);
+      
+      // Aggiungi i permessi dei gruppi selezionati
+      const groupAccess = collectGroupAccess();
+      if (groupAccess.length > 0) {
+        passwordData.group_access = groupAccess;
+      }
     }
     
     const response = await sendMessage({ 

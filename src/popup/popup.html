@@ -196,6 +196,15 @@
                         </select>
                     </div>
                     
+                    <!-- Sezione condivisione gruppi (visibile solo quando selezionato cliente) -->
+                    <div id="groups-sharing-section" class="form-group groups-sharing-section" style="display: none;">
+                        <label>Condividi con</label>
+                        <div id="groups-list" class="groups-list">
+                            <!-- Gruppi caricati dinamicamente -->
+                        </div>
+                        <small class="form-hint">Il gruppo "Amministratore" sarà automaticamente il proprietario. Puoi aggiungere altri gruppi con permessi di lettura o scrittura.</small>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="add-category">Categoria</label>
                         <select id="add-category">
@@ -210,14 +219,6 @@
                             <option value="wifi">WiFi</option>
                             <option value="other">Altro</option>
                         </select>
-                    </div>
-                    
-                    <div class="form-group form-group-checkbox">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="add-shared">
-                            <span>Condividi con il team</span>
-                        </label>
-                        <small class="form-hint">Se selezionato, la password sarà visibile agli altri membri del team</small>
                     </div>
                     
                     <div class="form-group">

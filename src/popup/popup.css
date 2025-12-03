@@ -869,6 +869,126 @@ body {
   margin-left: 28px;
 }
 
+/* ===== GROUPS SHARING SECTION ===== */
+.groups-sharing-section {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 12px;
+  margin-top: 12px;
+}
+
+.groups-sharing-section > label {
+  margin-bottom: 10px;
+}
+
+.groups-sharing-section .form-hint {
+  margin-left: 0;
+  margin-top: 10px;
+}
+
+.groups-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.group-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px 10px;
+  gap: 10px;
+}
+
+.group-item.is-owner {
+  background: var(--primary-lighter);
+  border-color: var(--primary-color);
+}
+
+.group-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.group-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.group-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.group-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-owner-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--primary-color);
+  background: var(--primary-light);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.group-access-select {
+  width: 120px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-color);
+  color: var(--text-primary);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.group-access-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: var(--bg-tertiary);
+}
+
+.group-access-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+.groups-loading {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.groups-empty {
+  text-align: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
