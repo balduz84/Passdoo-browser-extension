@@ -238,6 +238,8 @@ async function checkAuthStatus() {
   try {
     const session = await storage.getSession();
     
+    console.log('Passdoo: checkAuthStatus - session:', session ? 'exists' : 'null', 'token:', session?.token ? session.token.substring(0, 10) + '...' : 'none');
+    
     if (!session || !session.token) {
       return { isAuthenticated: false };
     }
@@ -245,6 +247,8 @@ async function checkAuthStatus() {
     // Il token è valido per 90 giorni, ma verifichiamo comunque con il server
     // per assicurarci che non sia stato revocato
     const isValid = await api.validateToken(session.token);
+    
+    console.log('Passdoo: checkAuthStatus - token validation result:', isValid);
     
     if (!isValid) {
       await storage.clearSession();
@@ -264,6 +268,8 @@ async function checkAuthStatus() {
 async function getPasswords(search = '', forceRefresh = false) {
   try {
     const session = await storage.getSession();
+    
+    console.log('Passdoo: getPasswords - token exists:', !!session?.token);
     
     if (!session || !session.token) {
       throw new Error('Non autenticato');
@@ -312,6 +318,20 @@ async function getPasswords(search = '', forceRefresh = false) {
     return { passwords: result };
   } catch (error) {
     console.error('Passdoo: Get passwords error', error);
+    
+    // Se la sessione è scaduta, invalida il token locale
+    if (error.message && (
+        error.message.includes('Sessione scaduta') ||
+        error.message.includes('Token non valido') ||
+        error.message.includes('401') ||
+        error.message.includes('Non autenticato')
+    )) {
+      await storage.clearSession();
+      passwordCache = null;
+      cacheTimestamp = null;
+      throw new Error('SESSION_EXPIRED');
+    }
+    
     throw error;
   }
 }
@@ -424,12 +444,21 @@ async function getUserInfo() {
     const session = await storage.getSession();
     
     if (!session || !session.token) {
-      throw new Error('Non autenticato');
+      throw new Error('SESSION_EXPIRED');
     }
     
     const userInfo = await api.getUserInfo(session.token);
     return { user: userInfo };
   } catch (error) {
+    // Se la sessione è scaduta, invalida il token locale
+    if (error.message && (
+        error.message.includes('Sessione scaduta') ||
+        error.message.includes('Token non valido') ||
+        error.message.includes('Non autenticato')
+    )) {
+      await storage.clearSession();
+      throw new Error('SESSION_EXPIRED');
+    }
     console.error('Passdoo: Get user info error', error);
     throw error;
   }

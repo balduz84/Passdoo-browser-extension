@@ -43,9 +43,41 @@ export class PassdooAPI {
     try {
       const response = await fetch(url, options);
       
+      // Verifica che la risposta sia JSON
+      const contentType = response.headers.get('content-type') || '';
+      const isJson = contentType.includes('application/json');
+      
+      // Log per debug
+      console.debug('Passdoo API:', url, 'Status:', response.status, 'Content-Type:', contentType);
+      
+      // Se la risposta è HTML, probabilmente è una pagina di login o errore
+      if (contentType.includes('text/html')) {
+        if (response.status === 200) {
+          throw new Error('Sessione scaduta. Effettua nuovamente il login.');
+        }
+        throw new Error(`Errore del server (${response.status}). Verifica che il modulo Passdoo sia attivo.`);
+      }
+      
+      // Se Content-Type non specificato o non JSON, verifica se response è valida
+      if (!isJson && !contentType) {
+        console.warn('Passdoo API: No Content-Type header from server for', url);
+        // Prova comunque a leggere come JSON
+        try {
+          const text = await response.text();
+          if (text.startsWith('<!DOCTYPE') || text.startsWith('<html')) {
+            throw new Error('Server ha restituito HTML invece di JSON. Sessione scaduta.');
+          }
+          // Prova parsing JSON
+          return JSON.parse(text);
+        } catch (parseError) {
+          console.error('Passdoo API: JSON parse error:', parseError);
+          throw new Error('Sessione scaduta o server non raggiungibile. Effettua nuovamente il login.');
+        }
+      }
+      
       // Gestione speciale per errore di versione
       if (response.status === 426) {
-        const errorData = await response.json();
+        const errorData = isJson ? await response.json() : { message: 'Aggiornamento richiesto' };
         // Emetti un evento speciale per la gestione aggiornamento
         const error = new Error(errorData.message || 'Aggiornamento richiesto');
         error.code = 'VERSION_OUTDATED';
@@ -55,19 +87,53 @@ export class PassdooAPI {
       
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error('Token non valido o scaduto');
+          throw new Error('Token non valido o scaduto. Effettua nuovamente il login.');
         }
         if (response.status === 403) {
           throw new Error('Accesso negato');
+        }
+        if (response.status === 404) {
+          throw new Error('Endpoint non trovato. Verifica che il modulo Passdoo sia installato sul server.');
+        }
+        if (response.status === 502 || response.status === 503 || response.status === 504) {
+          throw new Error('Server non disponibile. Riprova tra qualche minuto.');
+        }
+        if (response.status === 500) {
+          throw new Error('Errore interno del server. Contatta l\'amministratore.');
+        }
+        
+        // Se non è JSON, probabilmente è una pagina HTML di errore
+        if (!isJson) {
+          throw new Error(`Server ha restituito una risposta non valida (${response.status}). Verifica la connessione al server.`);
         }
         
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || `Errore HTTP ${response.status}`);
       }
       
+      // Verifica che la risposta sia JSON prima di fare il parsing
+      if (!isJson) {
+        // Log per debug
+        console.warn('Passdoo API: Response Content-Type non JSON:', contentType, 'URL:', url);
+        throw new Error('Sessione scaduta o server non raggiungibile. Effettua nuovamente il login.');
+      }
+      
       return await response.json();
     } catch (error) {
-      console.error('Passdoo API Error:', error);
+      // Gestisci errori di parsing JSON (risposta HTML invece di JSON)
+      if (error instanceof SyntaxError || 
+          (error.name === 'SyntaxError') ||
+          (error.message && error.message.includes('Unexpected token'))) {
+        throw new Error('Il server ha restituito una risposta non valida. Sessione scaduta o server in manutenzione.');
+      }
+      // Gestisci errori di rete
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        throw new Error('Impossibile contattare il server. Verifica la connessione.');
+      }
+      // Non loggare errori di sessione scaduta (sono gestiti normalmente)
+      if (!error.message?.includes('Sessione scaduta')) {
+        console.error('Passdoo API Error:', error);
+      }
       throw error;
     }
   }
@@ -77,9 +143,12 @@ export class PassdooAPI {
    */
   async validateToken(token) {
     try {
+      console.log('Passdoo API: Validating token...');
       const result = await this.request('/passdoo/api/extension/validate', 'GET', null, token);
+      console.log('Passdoo API: Validate response:', result);
       return result.valid === true;
-    } catch {
+    } catch (error) {
+      console.log('Passdoo API: Validate error:', error.message);
       return false;
     }
   }
@@ -88,7 +157,9 @@ export class PassdooAPI {
    * Ottiene la lista delle password accessibili all'utente
    */
   async getPasswords(token) {
+    console.log('Passdoo API: Getting passwords...');
     const result = await this.request('/passdoo/api/extension/passwords', 'GET', null, token);
+    console.log('Passdoo API: Got passwords:', result?.passwords?.length || 0);
     return result.passwords || [];
   }
 

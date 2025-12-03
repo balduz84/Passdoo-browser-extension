@@ -20,7 +20,8 @@ let state = {
   currentPassword: null,
   currentTab: 'all',
   currentUrl: null,
-  isLoading: false
+  isLoading: false,
+  clientFilter: null  // Filtro per cliente: { id, name }
 };
 
 // Elementi DOM
@@ -170,7 +171,12 @@ async function checkAuth() {
     }
   } catch (error) {
     console.error('Auth check error:', error);
+    state.isAuthenticated = false;
     showLoginView();
+    // Mostra toast solo se è un errore di sessione scaduta
+    if (error.message === 'SESSION_EXPIRED') {
+      showToast('Sessione scaduta. Effettua nuovamente il login.', 'warning');
+    }
   } finally {
     setLoading(false);
   }
@@ -240,7 +246,12 @@ async function loadUserInfo() {
       elements.userFooter.style.display = 'flex';
     }
   } catch (error) {
+    // Se la sessione è scaduta, propaga l'errore per interrompere il flusso
+    if (error.message === 'SESSION_EXPIRED') {
+      throw error;  // Propaga per far gestire a checkAuth
+    }
     console.error('Error loading user info:', error);
+    // Non propagare altri errori - getUserInfo non è critico
   }
 }
 
@@ -257,7 +268,12 @@ async function loadPasswords(forceRefresh = false) {
       forceRefresh 
     });
     
-    state.passwords = response.passwords || [];
+    // Gestisci risposta undefined o senza passwords
+    if (!response || !response.passwords) {
+      state.passwords = [];
+    } else {
+      state.passwords = response.passwords;
+    }
     
     // Il server già restituisce solo le password accessibili all'utente,
     // filtrate in base ai gruppi di permesso
@@ -274,6 +290,15 @@ async function loadPasswords(forceRefresh = false) {
     
   } catch (error) {
     console.error('Error loading passwords:', error);
+    
+    // Se la sessione è scaduta, torna alla schermata di login
+    if (error.message === 'SESSION_EXPIRED') {
+      state.isAuthenticated = false;
+      showLoginView();
+      showToast('Sessione scaduta. Effettua nuovamente il login.', 'warning');
+      return;
+    }
+    
     showToast('Errore nel caricamento delle password', 'error');
   } finally {
     setLoading(false);
@@ -286,28 +311,51 @@ async function loadPasswords(forceRefresh = false) {
 function updatePasswordList() {
   let passwordsToShow = [];
   
+  // Prima applica il filtro per cliente se attivo
+  let basePasswords = state.accessiblePasswords;
+  let basePersonal = state.personalPasswords;
+  let baseShared = state.sharedPasswords;
+  
+  if (state.clientFilter) {
+    basePasswords = state.accessiblePasswords.filter(p => p.partner_id === state.clientFilter.id);
+    basePersonal = state.personalPasswords.filter(p => p.partner_id === state.clientFilter.id);
+    baseShared = state.sharedPasswords.filter(p => p.partner_id === state.clientFilter.id);
+  }
+  
+  // Applica anche il filtro di ricerca se presente
+  let filteredBySearch = state.filteredPasswords;
+  if (state.clientFilter && state.filteredPasswords.length > 0) {
+    filteredBySearch = state.filteredPasswords.filter(p => p.partner_id === state.clientFilter.id);
+  }
+  
   if (state.currentTab === 'personal') {
     // Tab "Mie": password dove sono owner
-    passwordsToShow = state.filteredPasswords.length > 0 || elements.searchInput.value 
-      ? state.filteredPasswords.filter(p => p.is_owner)
-      : state.personalPasswords;
+    passwordsToShow = filteredBySearch.length > 0 || elements.searchInput.value 
+      ? filteredBySearch.filter(p => p.is_owner)
+      : basePersonal;
     if (passwordsToShow.length === 0) {
-      elements.emptyMessage.textContent = 'Nessuna password di cui sei owner';
+      elements.emptyMessage.textContent = state.clientFilter 
+        ? `Nessuna password di cui sei owner per ${state.clientFilter.name}`
+        : 'Nessuna password di cui sei owner';
     }
   } else if (state.currentTab === 'shared') {
     // Tab "Condivise": password dove non sono owner ma ho accesso
-    passwordsToShow = state.filteredPasswords.length > 0 || elements.searchInput.value 
-      ? state.filteredPasswords.filter(p => !p.is_owner)
-      : state.sharedPasswords;
+    passwordsToShow = filteredBySearch.length > 0 || elements.searchInput.value 
+      ? filteredBySearch.filter(p => !p.is_owner)
+      : baseShared;
     if (passwordsToShow.length === 0) {
-      elements.emptyMessage.textContent = 'Nessuna password condivisa con te';
+      elements.emptyMessage.textContent = state.clientFilter 
+        ? `Nessuna password condivisa per ${state.clientFilter.name}`
+        : 'Nessuna password condivisa con te';
     }
   } else {
     // Tab "Tutte" - mostra tutte le password accessibili
-    passwordsToShow = state.filteredPasswords.length > 0 || elements.searchInput.value 
-      ? state.filteredPasswords 
-      : state.accessiblePasswords;
-    elements.emptyMessage.textContent = 'Nessuna password trovata';
+    passwordsToShow = filteredBySearch.length > 0 || elements.searchInput.value 
+      ? filteredBySearch 
+      : basePasswords;
+    elements.emptyMessage.textContent = state.clientFilter 
+      ? `Nessuna password trovata per ${state.clientFilter.name}`
+      : 'Nessuna password trovata';
   }
   
   if (passwordsToShow.length === 0) {
@@ -318,9 +366,15 @@ function updatePasswordList() {
   
   elements.emptyState.style.display = 'none';
   
-  // Raggruppa le password per cliente
-  const groupedPasswords = groupPasswordsByClient(passwordsToShow);
-  elements.passwordList.innerHTML = renderGroupedPasswords(groupedPasswords);
+  // Se c'è filtro cliente, mostra solo le categorie (senza raggruppamento per cliente)
+  if (state.clientFilter) {
+    const categoriesHtml = renderCategoriesOnly(passwordsToShow);
+    elements.passwordList.innerHTML = categoriesHtml;
+  } else {
+    // Raggruppa le password per cliente e poi per categoria
+    const groupedPasswords = groupPasswordsByClient(passwordsToShow);
+    elements.passwordList.innerHTML = renderGroupedPasswords(groupedPasswords);
+  }
   
   // Aggiungi event listener per ogni item
   elements.passwordList.querySelectorAll('.password-item').forEach(item => {
@@ -329,9 +383,29 @@ function updatePasswordList() {
   
   // Aggiungi event listener per i gruppi collassabili
   elements.passwordList.querySelectorAll('.client-group-header').forEach(header => {
-    header.addEventListener('click', () => {
+    header.addEventListener('click', (e) => {
+      // Non collassare se si clicca sul bottone filtro
+      if (e.target.closest('.client-filter-btn')) return;
       const group = header.closest('.client-group');
       group.classList.toggle('collapsed');
+    });
+  });
+
+  // Aggiungi event listener per le categorie collassabili (secondo livello)
+  elements.passwordList.querySelectorAll('.category-group-header').forEach(header => {
+    header.addEventListener('click', (e) => {
+      const group = header.closest('.category-group');
+      group.classList.toggle('collapsed');
+    });
+  });
+
+  // Aggiungi event listener per i bottoni filtro cliente
+  elements.passwordList.querySelectorAll('.client-filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const clientId = parseInt(btn.dataset.clientId);
+      const clientName = btn.dataset.clientName;
+      applyClientFilter(clientId, clientName);
     });
   });
 
@@ -361,6 +435,89 @@ function updatePasswordList() {
 }
 
 /**
+ * Re-renderizza la lista password (alias per updatePasswordList)
+ */
+function renderPasswordList() {
+  updatePasswordList();
+}
+
+/**
+ * Applica il filtro per cliente
+ */
+function applyClientFilter(clientId, clientName) {
+  state.clientFilter = { id: clientId, name: clientName };
+  
+  // Mostra la barra del filtro attivo
+  showClientFilterBar(clientName);
+  
+  // Aggiorna la lista
+  renderPasswordList();
+  
+  showToast(`Filtro: ${clientName}`, 'success');
+}
+
+/**
+ * Rimuove il filtro per cliente
+ */
+function clearClientFilter() {
+  state.clientFilter = null;
+  
+  // Nascondi la barra del filtro
+  hideClientFilterBar();
+  
+  // Aggiorna la lista
+  renderPasswordList();
+}
+
+/**
+ * Mostra la barra del filtro cliente attivo
+ */
+function showClientFilterBar(clientName) {
+  let filterBar = document.getElementById('client-filter-bar');
+  
+  if (!filterBar) {
+    // Crea la barra se non esiste
+    filterBar = document.createElement('div');
+    filterBar.id = 'client-filter-bar';
+    filterBar.className = 'client-filter-bar';
+    
+    // Inseriscila dopo i tab
+    const tabNav = document.querySelector('.tab-nav');
+    tabNav.parentNode.insertBefore(filterBar, tabNav.nextSibling);
+  }
+  
+  filterBar.innerHTML = `
+    <div class="filter-info">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+      </svg>
+      <span>Filtro: <strong>${escapeHtml(clientName)}</strong></span>
+    </div>
+    <button id="btn-clear-client-filter" class="filter-clear-btn" title="Rimuovi filtro">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  `;
+  
+  filterBar.style.display = 'flex';
+  
+  // Aggiungi event listener per rimuovere il filtro
+  document.getElementById('btn-clear-client-filter').addEventListener('click', clearClientFilter);
+}
+
+/**
+ * Nascondi la barra del filtro cliente
+ */
+function hideClientFilterBar() {
+  const filterBar = document.getElementById('client-filter-bar');
+  if (filterBar) {
+    filterBar.style.display = 'none';
+  }
+}
+
+/**
  * Configura i gestori di errore per le immagini dei clienti
  * Necessario per evitare violazioni CSP con handler inline
  */
@@ -377,7 +534,8 @@ function setupImageErrorHandlers() {
 }
 
 /**
- * Raggruppa le password per cliente
+ * Raggruppa le password per cliente e poi per categoria
+ * Struttura: Cliente → Categoria → Password
  */
 function groupPasswordsByClient(passwords) {
   const groups = {};
@@ -391,13 +549,34 @@ function groupPasswordsByClient(passwords) {
           id: password.partner_id,
           name: password.partner_name,
           image: password.partner_image,
+          categories: {},
+          totalCount: 0
+        };
+      }
+      
+      // Raggruppa per categoria all'interno del cliente
+      const categoryKey = password.category || 'other';
+      const categoryName = password.category ? getCategoryDisplayName(password.category) : 'Altro';
+      
+      if (!groups[clientKey].categories[categoryKey]) {
+        groups[clientKey].categories[categoryKey] = {
+          key: categoryKey,
+          name: categoryName,
           passwords: []
         };
       }
-      groups[clientKey].passwords.push(password);
+      groups[clientKey].categories[categoryKey].passwords.push(password);
+      groups[clientKey].totalCount++;
     } else {
       noClient.push(password);
     }
+  });
+  
+  // Converti le categorie in array ordinati per ogni cliente
+  Object.values(groups).forEach(group => {
+    group.categoryList = Object.values(group.categories).sort((a, b) => 
+      a.name.localeCompare(b.name)
+    );
   });
   
   // Ordina i gruppi per nome cliente
@@ -412,7 +591,28 @@ function groupPasswordsByClient(passwords) {
 }
 
 /**
- * Renderizza le password raggruppate per cliente
+ * Ottiene il nome visualizzato per una categoria
+ */
+function getCategoryDisplayName(category) {
+  const categoryNames = {
+    'web': 'Siti Web',
+    'server': 'Server',
+    'database': 'Database',
+    'email': 'Email',
+    'vpn': 'VPN',
+    'wifi': 'WiFi',
+    'api': 'API',
+    'certificate': 'Certificati',
+    'ssh': 'SSH',
+    'ftp': 'FTP',
+    'other': 'Altro'
+  };
+  return categoryNames[category] || category || 'Altro';
+}
+
+/**
+ * Renderizza le password raggruppate per cliente e categoria
+ * Struttura: Cliente → Categoria → Password
  */
 function renderGroupedPasswords(grouped) {
   let html = '';
@@ -447,12 +647,40 @@ function renderGroupedPasswords(grouped) {
         `;
       }
       
+      // Costruisci il contenuto con le categorie
+      let categoriesHtml = '';
+      group.categoryList.forEach(category => {
+        const categoryIcon = getCategoryIcon(category.key);
+        categoriesHtml += `
+          <div class="category-group collapsed">
+            <div class="category-group-header" data-category="${escapeHtml(category.key)}">
+              <div class="category-icon">${categoryIcon}</div>
+              <div class="category-name">${escapeHtml(category.name)}</div>
+              <div class="category-count">${category.passwords.length}</div>
+              <div class="category-chevron">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </div>
+            <div class="category-group-content">
+              ${category.passwords.map(p => createPasswordItem(p)).join('')}
+            </div>
+          </div>
+        `;
+      });
+      
       html += `
         <div class="client-group collapsed">
           <div class="client-group-header">
             ${clientIconHtml}
             <div class="client-name">${escapeHtml(group.name)}</div>
-            <div class="client-count">${group.passwords.length}</div>
+            <button class="client-filter-btn" data-client-id="${group.id}" data-client-name="${escapeHtml(group.name)}" title="Filtra per questo cliente">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+              </svg>
+            </button>
+            <div class="client-count">${group.totalCount}</div>
             <div class="client-chevron">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="6 9 12 15 18 9"></polyline>
@@ -460,7 +688,7 @@ function renderGroupedPasswords(grouped) {
             </div>
           </div>
           <div class="client-group-content">
-            ${group.passwords.map(p => createPasswordItem(p)).join('')}
+            ${categoriesHtml}
           </div>
         </div>
       `;
@@ -468,6 +696,41 @@ function renderGroupedPasswords(grouped) {
     
     // Poi mostra le password senza cliente (chiuso di default)
     if (grouped.noClientPasswords.length > 0) {
+      // Raggruppa anche queste per categoria
+      const noClientCategories = {};
+      grouped.noClientPasswords.forEach(p => {
+        const catKey = p.category || 'other';
+        const catName = getCategoryDisplayName(catKey);
+        if (!noClientCategories[catKey]) {
+          noClientCategories[catKey] = { key: catKey, name: catName, passwords: [] };
+        }
+        noClientCategories[catKey].passwords.push(p);
+      });
+      
+      const noClientCatList = Object.values(noClientCategories).sort((a, b) => a.name.localeCompare(b.name));
+      
+      let noClientCategoriesHtml = '';
+      noClientCatList.forEach(category => {
+        const categoryIcon = getCategoryIcon(category.key);
+        noClientCategoriesHtml += `
+          <div class="category-group collapsed">
+            <div class="category-group-header" data-category="${escapeHtml(category.key)}">
+              <div class="category-icon">${categoryIcon}</div>
+              <div class="category-name">${escapeHtml(category.name)}</div>
+              <div class="category-count">${category.passwords.length}</div>
+              <div class="category-chevron">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </div>
+            <div class="category-group-content">
+              ${category.passwords.map(p => createPasswordItem(p)).join('')}
+            </div>
+          </div>
+        `;
+      });
+      
       html += `
         <div class="client-group collapsed">
           <div class="client-group-header">
@@ -486,12 +749,54 @@ function renderGroupedPasswords(grouped) {
             </div>
           </div>
           <div class="client-group-content">
-            ${grouped.noClientPasswords.map(p => createPasswordItem(p)).join('')}
+            ${noClientCategoriesHtml}
           </div>
         </div>
       `;
     }
   }
+  
+  return html;
+}
+
+/**
+ * Renderizza le password raggruppate solo per categoria (usato quando c'è filtro cliente)
+ */
+function renderCategoriesOnly(passwords) {
+  // Raggruppa per categoria
+  const categories = {};
+  passwords.forEach(password => {
+    const catKey = password.category || 'other';
+    const catName = getCategoryDisplayName(catKey);
+    if (!categories[catKey]) {
+      categories[catKey] = { key: catKey, name: catName, passwords: [] };
+    }
+    categories[catKey].passwords.push(password);
+  });
+  
+  const categoryList = Object.values(categories).sort((a, b) => a.name.localeCompare(b.name));
+  
+  let html = '';
+  categoryList.forEach(category => {
+    const categoryIcon = getCategoryIcon(category.key);
+    html += `
+      <div class="category-group collapsed category-group-standalone">
+        <div class="category-group-header" data-category="${escapeHtml(category.key)}">
+          <div class="category-icon">${categoryIcon}</div>
+          <div class="category-name">${escapeHtml(category.name)}</div>
+          <div class="category-count">${category.passwords.length}</div>
+          <div class="category-chevron">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </div>
+        </div>
+        <div class="category-group-content">
+          ${category.passwords.map(p => createPasswordItem(p)).join('')}
+        </div>
+      </div>
+    `;
+  });
   
   return html;
 }
@@ -840,7 +1145,10 @@ async function sendMessage(message) {
         // Gestione speciale per errore di versione obsoleta
         if (response.error === 'VERSION_OUTDATED') {
           handleVersionOutdated(response.data);
-          reject(new Error('Aggiornamento richiesto'));
+          reject(new Error('VERSION_OUTDATED'));
+        } else if (response.error === 'SESSION_EXPIRED') {
+          // Gestione speciale per sessione scaduta
+          reject(new Error('SESSION_EXPIRED'));
         } else {
           reject(new Error(response.error));
         }
