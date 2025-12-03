@@ -355,6 +355,25 @@ function updatePasswordList() {
       }
     });
   });
+
+  // Configura gestori errore immagini (CSP-compliant, no inline handlers)
+  setupImageErrorHandlers();
+}
+
+/**
+ * Configura i gestori di errore per le immagini dei clienti
+ * Necessario per evitare violazioni CSP con handler inline
+ */
+function setupImageErrorHandlers() {
+  document.querySelectorAll('.client-icon-img').forEach(img => {
+    img.addEventListener('error', function() {
+      this.style.display = 'none';
+      const fallback = this.nextElementSibling;
+      if (fallback) {
+        fallback.style.display = 'block';
+      }
+    });
+  });
 }
 
 /**
@@ -410,8 +429,8 @@ function renderGroupedPasswords(grouped) {
       if (group.image) {
         clientIconHtml = `
           <div class="client-icon client-icon-with-img">
-            <img src="data:image/png;base64,${group.image}" alt="${escapeHtml(group.name)}" class="client-icon-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
-            <svg style="display: none;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <img src="data:image/png;base64,${group.image}" alt="${escapeHtml(group.name)}" class="client-icon-img" data-has-fallback="true" />
+            <svg class="client-icon-fallback" style="display: none;" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
