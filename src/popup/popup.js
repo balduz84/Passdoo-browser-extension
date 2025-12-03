@@ -3,6 +3,11 @@
  * Gestisce l'interfaccia utente del popup
  */
 
+// Configurazione
+const CONFIG = {
+  ODOO_URL: 'https://portal.novacs.net'
+};
+
 // Stato dell'applicazione
 let state = {
   isAuthenticated: false,
@@ -813,12 +818,65 @@ async function sendMessage(message) {
       if (chrome.runtime.lastError) {
         reject(new Error(chrome.runtime.lastError.message));
       } else if (response && response.error) {
-        reject(new Error(response.error));
+        // Gestione speciale per errore di versione obsoleta
+        if (response.error === 'VERSION_OUTDATED') {
+          handleVersionOutdated(response.data);
+          reject(new Error('Aggiornamento richiesto'));
+        } else {
+          reject(new Error(response.error));
+        }
       } else {
         resolve(response);
       }
     });
   });
+}
+
+/**
+ * Gestisce l'errore di versione obsoleta
+ */
+function handleVersionOutdated(data) {
+  // Mostra una vista speciale per l'aggiornamento
+  const downloadUrl = data?.download_url || '/passdoo/downloads';
+  const currentVersion = data?.current_version || 'sconosciuta';
+  const minVersion = data?.min_version || 'più recente';
+  
+  // Nascondi tutte le viste
+  hideAllViews();
+  
+  // Mostra messaggio di aggiornamento
+  const mainView = elements.viewMain || document.getElementById('view-main');
+  if (mainView) {
+    mainView.style.display = 'block';
+    const passwordList = document.getElementById('password-list');
+    if (passwordList) {
+      passwordList.innerHTML = `
+        <div class="update-required-message">
+          <div class="update-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
+          <h3>Aggiornamento Richiesto</h3>
+          <p>La versione attuale (${escapeHtml(currentVersion)}) non è più supportata.</p>
+          <p>È richiesta almeno la versione <strong>${escapeHtml(minVersion)}</strong>.</p>
+          <a href="${CONFIG.ODOO_URL}${downloadUrl}" target="_blank" class="btn btn-primary update-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Scarica Aggiornamento
+          </a>
+        </div>
+      `;
+    }
+  }
+  
+  // Esegui logout per sicurezza
+  chrome.runtime.sendMessage({ action: 'logout' });
 }
 
 /**

@@ -29,7 +29,18 @@ let cacheTimestamp = null;
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage(message, sender)
     .then(sendResponse)
-    .catch(error => sendResponse({ error: error.message }));
+    .catch(error => {
+      // Gestione speciale per errore di versione obsoleta
+      if (error.code === 'VERSION_OUTDATED') {
+        sendResponse({ 
+          error: 'VERSION_OUTDATED', 
+          message: error.message,
+          data: error.data 
+        });
+      } else {
+        sendResponse({ error: error.message });
+      }
+    });
   return true; // Indica risposta asincrona
 });
 

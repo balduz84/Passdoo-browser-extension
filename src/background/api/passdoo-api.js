@@ -3,6 +3,9 @@
  * Gestisce tutte le chiamate API verso il server ODOO/Passdoo
  */
 
+// Versione dell'estensione (letta dal manifest)
+const EXTENSION_VERSION = chrome.runtime.getManifest().version;
+
 export class PassdooAPI {
   constructor(baseUrl) {
     this.baseUrl = baseUrl;
@@ -17,6 +20,8 @@ export class PassdooAPI {
     const headers = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'X-Client-Type': 'browser-extension',
+      'X-Client-Version': EXTENSION_VERSION
     };
     
     // Aggiungi il session ID se presente
@@ -36,6 +41,16 @@ export class PassdooAPI {
     
     try {
       const response = await fetch(url, options);
+      
+      // Gestione speciale per errore di versione
+      if (response.status === 426) {
+        const errorData = await response.json();
+        // Emetti un evento speciale per la gestione aggiornamento
+        const error = new Error(errorData.message || 'Aggiornamento richiesto');
+        error.code = 'VERSION_OUTDATED';
+        error.data = errorData;
+        throw error;
+      }
       
       if (!response.ok) {
         if (response.status === 401) {
