@@ -521,14 +521,15 @@ async function getClientGroups(partnerId) {
     }
     
     if (!partnerId) {
-      return { groups: [] };
+      return { groups: [], max_permission: 'read', can_create: false };
     }
     
-    const groups = await api.getClientGroups(session.token, partnerId);
-    return { groups: groups || [] };
+    // L'API ora restituisce { groups, max_permission, can_create, owner_group_id, is_admin }
+    const result = await api.getClientGroups(session.token, partnerId);
+    return result;
   } catch (error) {
     console.error('Passdoo: Get client groups error', error);
-    return { groups: [] };
+    return { groups: [], max_permission: 'read', can_create: false };
   }
 }
 

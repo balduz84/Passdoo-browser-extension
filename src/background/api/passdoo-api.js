@@ -292,10 +292,17 @@ export class PassdooAPI {
   async getClientGroups(token, partnerId) {
     try {
       const result = await this.request(`/passdoo/api/extension/client/${partnerId}/groups`, 'GET', null, token);
-      return result.groups || [];
+      // Restituisce l'intera risposta con groups, max_permission, can_create, ecc.
+      return {
+        groups: result.groups || [],
+        max_permission: result.max_permission || 'read',
+        can_create: result.can_create !== false,
+        owner_group_id: result.owner_group_id,
+        is_admin: result.is_admin || false
+      };
     } catch (error) {
       console.warn('Passdoo API: getClientGroups failed', error.message);
-      return [];
+      return { groups: [], max_permission: 'read', can_create: false };
     }
   }
 
