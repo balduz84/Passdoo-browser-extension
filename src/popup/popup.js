@@ -472,21 +472,43 @@ function updatePasswordList() {
 
   // Aggiungi event listener per i bottoni di copia rapida
   elements.passwordList.querySelectorAll('.quick-copy').forEach(btn => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       e.stopPropagation();
       const id = parseInt(btn.dataset.id);
       const type = btn.dataset.type;
-      const password = state.passwords.find(p => p.id === id);
       
-      if (password) {
-        // Temporaneamente imposta la password corrente per usare handleCopy
-        const prevPassword = state.currentPassword;
-        state.currentPassword = password;
-        handleCopy(type);
-        // Ripristina (opzionale, ma più sicuro)
-        if (!elements.viewDetail.style.display === 'block') {
-            state.currentPassword = prevPassword;
+      try {
+        // Per copiare la password, dobbiamo caricare i dettagli completi
+        if (type === 'password') {
+          const response = await sendMessage({ action: 'getPasswordById', id });
+          if (response && response.password && response.password.password_plain) {
+            await sendMessage({ action: 'copyToClipboard', text: response.password.password_plain });
+            showToast('Password copiata', 'success');
+          } else {
+            showToast('Password non disponibile', 'error');
+          }
+        } else {
+          // Per username e altri campi, possiamo usare i dati dalla lista
+          const password = state.passwords.find(p => p.id === id);
+          if (password) {
+            let textToCopy = '';
+            if (type === 'username') {
+              textToCopy = password.username || '';
+            } else if (type === 'uri') {
+              textToCopy = password.uri || '';
+            }
+            
+            if (textToCopy) {
+              await sendMessage({ action: 'copyToClipboard', text: textToCopy });
+              showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} copiato`, 'success');
+            } else {
+              showToast('Nessun valore da copiare', 'error');
+            }
+          }
         }
+      } catch (error) {
+        console.error('Quick copy error:', error);
+        showToast('Errore nella copia', 'error');
       }
     });
   });
@@ -981,18 +1003,20 @@ function createPasswordItem(password) {
             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
           </svg>
         </button>` : ''}
+        ${password.username ? `
         <button class="quick-copy" data-id="${password.id}" data-type="username" title="Copia username">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
-        </button>
+        </button>` : ''}
+        ${password.has_password !== false ? `
         <button class="quick-copy" data-id="${password.id}" data-type="password" title="Copia password">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>
-        </button>
+        </button>` : ''}
       </div>
     </div>
   `;
@@ -1198,12 +1222,25 @@ async function handleCopy(type) {
       break;
   }
   
+  if (!textToCopy) {
+    showToast('Nessun valore da copiare', 'error');
+    return;
+  }
+  
   try {
-    await navigator.clipboard.writeText(textToCopy);
+    // Usa il service worker per copiare tramite l'offscreen API
+    await sendMessage({ action: 'copyToClipboard', text: textToCopy });
     showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} copiato`, 'success');
   } catch (error) {
     console.error('Clipboard error:', error);
-    showToast('Errore nella copia', 'error');
+    // Fallback: prova con l'API navigator.clipboard direttamente
+    try {
+      await navigator.clipboard.writeText(textToCopy);
+      showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} copiato`, 'success');
+    } catch (fallbackError) {
+      console.error('Clipboard fallback error:', fallbackError);
+      showToast('Errore nella copia', 'error');
+    }
   }
 }
 

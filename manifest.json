@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Passdoo Password Manager",
   "short_name": "Passdoo",
-  "version": "1.8.3",
+  "version": "1.8.6",
   "description": "Password manager per ODOO - Accedi e inserisci le password salvate in Passdoo direttamente nel browser",
   "author": "Silvio Balduzzi - NovaCS S.r.l.",
   "homepage_url": "https://portal.novacs.net",
@@ -45,7 +45,8 @@
     "tabs",
     "cookies",
     "alarms",
-    "clipboardWrite"
+    "clipboardWrite",
+    "offscreen"
   ],
   
   "host_permissions": [
@@ -55,7 +56,7 @@
   
   "web_accessible_resources": [
     {
-      "resources": ["src/icons/*", "src/content/*"],
+      "resources": ["src/icons/*", "src/content/*", "src/offscreen/*"],
       "matches": ["<all_urls>"]
     }
   ],

@@ -402,22 +402,43 @@ async function getPasswordsByUrl(url) {
  */
 async function copyToClipboard(text) {
   try {
-    // Usa l'API offscreen per copiare
-    await chrome.offscreen.createDocument({
-      url: 'src/offscreen/offscreen.html',
-      reasons: ['CLIPBOARD'],
-      justification: 'Copia password negli appunti'
-    }).catch(() => {}); // Ignora se già esiste
+    // Prova prima a creare il documento offscreen (ignora se già esiste)
+    try {
+      await chrome.offscreen.createDocument({
+        url: 'src/offscreen/offscreen.html',
+        reasons: ['CLIPBOARD'],
+        justification: 'Copia password negli appunti'
+      });
+    } catch (createError) {
+      // Il documento potrebbe già esistere, ignora l'errore
+      if (!createError.message.includes('already exists')) {
+        console.warn('Passdoo: Offscreen create warning', createError);
+      }
+    }
     
-    await chrome.runtime.sendMessage({
+    // Invia il messaggio all'offscreen document
+    const response = await chrome.runtime.sendMessage({
       action: 'copyToClipboardOffscreen',
       text
     });
     
+    if (response && response.success === false) {
+      throw new Error(response.error || 'Clipboard copy failed');
+    }
+    
     return { success: true };
   } catch (error) {
     console.error('Passdoo: Clipboard error', error);
-    throw error;
+    
+    // Fallback: prova a usare l'API Clipboard direttamente nel service worker
+    // (funziona in alcuni contesti)
+    try {
+      await navigator.clipboard.writeText(text);
+      return { success: true };
+    } catch (fallbackError) {
+      console.error('Passdoo: Clipboard fallback error', fallbackError);
+      throw error;
+    }
   }
 }
 
