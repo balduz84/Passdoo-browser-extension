@@ -151,6 +151,10 @@ async function handleLogin() {
                 });
                 
                 await chrome.windows.remove(popup.id);
+                
+                // Aggiorna il badge dopo il login
+                await updateBadgeForCurrentTab().catch(() => {});
+                
                 resolve({ success: true });
               } else {
                 reject(new Error('Cookie di sessione non trovato'));
@@ -184,10 +188,28 @@ async function handleLogout() {
     await storage.clearSession();
     passwordCache = null;
     cacheTimestamp = null;
+    
+    // Nascondi il badge dopo il logout
+    await clearAllBadges();
+    
     return { success: true };
   } catch (error) {
     console.error('Passdoo: Logout error', error);
     throw error;
+  }
+}
+
+/**
+ * Pulisce il badge da tutte le tab
+ */
+async function clearAllBadges() {
+  try {
+    const tabs = await chrome.tabs.query({});
+    for (const tab of tabs) {
+      await chrome.action.setBadgeText({ text: '', tabId: tab.id }).catch(() => {});
+    }
+  } catch (error) {
+    console.error('Passdoo: Error clearing badges', error);
   }
 }
 
@@ -570,7 +592,102 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (isAuthenticated) {
       // Refresh della cache
       await getPasswords('', true);
+      // Aggiorna anche il badge dopo il refresh della cache
+      await updateBadgeForCurrentTab();
     }
+  }
+});
+
+// ==========================================
+// Badge Management - Mostra il conteggio delle password per l'URL corrente
+// ==========================================
+
+/**
+ * Aggiorna il badge dell'icona dell'estensione con il numero di password disponibili per l'URL
+ * @param {number} tabId - ID della tab
+ * @param {string} url - URL della tab
+ */
+async function updateBadge(tabId, url) {
+  try {
+    // Se non è un URL http/https, nascondi il badge
+    if (!url || !url.startsWith('http')) {
+      await chrome.action.setBadgeText({ text: '', tabId });
+      return;
+    }
+    
+    // Verifica autenticazione
+    const { isAuthenticated } = await checkAuthStatus();
+    if (!isAuthenticated) {
+      await chrome.action.setBadgeText({ text: '', tabId });
+      return;
+    }
+    
+    // Ottieni le password che corrispondono all'URL
+    const { passwords } = await getPasswordsByUrl(url);
+    const count = passwords.length;
+    
+    if (count > 0) {
+      // Mostra il badge con il numero di password
+      const badgeText = count > 9 ? '9+' : count.toString();
+      await chrome.action.setBadgeText({ text: badgeText, tabId });
+      await chrome.action.setBadgeBackgroundColor({ color: '#521213', tabId }); // Bordeaux
+      await chrome.action.setBadgeTextColor({ color: '#FFFFFF', tabId });
+    } else {
+      // Nessuna password, nascondi il badge
+      await chrome.action.setBadgeText({ text: '', tabId });
+    }
+  } catch (error) {
+    console.error('Passdoo: Error updating badge', error);
+    // In caso di errore, nascondi il badge
+    await chrome.action.setBadgeText({ text: '', tabId }).catch(() => {});
+  }
+}
+
+/**
+ * Aggiorna il badge per la tab correntemente attiva
+ */
+async function updateBadgeForCurrentTab() {
+  try {
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tabs.length > 0) {
+      const tab = tabs[0];
+      await updateBadge(tab.id, tab.url);
+    }
+  } catch (error) {
+    console.error('Passdoo: Error updating badge for current tab', error);
+  }
+}
+
+/**
+ * Listener per quando una tab viene aggiornata (cambio URL)
+ */
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+  // Aggiorna il badge solo quando l'URL cambia e il caricamento è completo
+  if (changeInfo.status === 'complete' && tab.url) {
+    await updateBadge(tabId, tab.url);
+  }
+});
+
+/**
+ * Listener per quando si passa a una tab diversa
+ */
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+  try {
+    const tab = await chrome.tabs.get(activeInfo.tabId);
+    if (tab.url) {
+      await updateBadge(tab.id, tab.url);
+    }
+  } catch (error) {
+    console.error('Passdoo: Error on tab activated', error);
+  }
+});
+
+/**
+ * Listener per quando cambia la finestra attiva
+ */
+chrome.windows.onFocusChanged.addListener(async (windowId) => {
+  if (windowId !== chrome.windows.WINDOW_ID_NONE) {
+    await updateBadgeForCurrentTab();
   }
 });
 
