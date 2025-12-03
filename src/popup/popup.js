@@ -1203,6 +1203,13 @@ function prefillAddPasswordForm(credentials) {
  * Mostra il modal About
  */
 function showAboutModal() {
+  // Aggiorna la versione dal manifest
+  const version = chrome.runtime.getManifest().version;
+  const versionEl = document.getElementById('about-version');
+  if (versionEl) {
+    versionEl.textContent = `Versione ${version}`;
+  }
+  
   elements.aboutModal.style.display = 'flex';
 }
 
