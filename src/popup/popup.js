@@ -326,6 +326,27 @@ function updatePasswordList() {
       group.classList.toggle('collapsed');
     });
   });
+
+  // Aggiungi event listener per i bottoni di copia rapida
+  elements.passwordList.querySelectorAll('.quick-copy').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.id);
+      const type = btn.dataset.type;
+      const password = state.passwords.find(p => p.id === id);
+      
+      if (password) {
+        // Temporaneamente imposta la password corrente per usare handleCopy
+        const prevPassword = state.currentPassword;
+        state.currentPassword = password;
+        handleCopy(type);
+        // Ripristina (opzionale, ma più sicuro)
+        if (!elements.viewDetail.style.display === 'block') {
+            state.currentPassword = prevPassword;
+        }
+      }
+    });
+  });
 }
 
 /**
@@ -454,6 +475,21 @@ function renderGroupedPasswords(grouped) {
 function createPasswordItem(password) {
   const categoryIcon = getCategoryIcon(password.category);
   
+  // Crea il link URL se presente
+  let urlHtml = '';
+  if (password.uri) {
+    // Estrai dominio per display più pulito
+    let displayUrl = password.uri;
+    try {
+      const url = new URL(password.uri.startsWith('http') ? password.uri : 'https://' + password.uri);
+      displayUrl = url.hostname + (url.pathname !== '/' ? url.pathname : '');
+    } catch (e) {
+      displayUrl = password.uri;
+    }
+    const fullUrl = password.uri.startsWith('http') ? password.uri : 'https://' + password.uri;
+    urlHtml = `<a href="${escapeHtml(fullUrl)}" class="password-url" target="_blank" title="${escapeHtml(password.uri)}">${escapeHtml(displayUrl)}</a>`;
+  }
+  
   return `
     <div class="password-item" data-id="${password.id}">
       <div class="password-icon">
@@ -462,8 +498,16 @@ function createPasswordItem(password) {
       <div class="password-info">
         <div class="password-name">${escapeHtml(password.name)}</div>
         <div class="password-username">${escapeHtml(password.username || '')}</div>
+        ${urlHtml}
       </div>
       <div class="password-actions">
+        ${password.uri ? `
+        <button class="quick-copy" data-id="${password.id}" data-type="uri" title="Copia URL">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+        </button>` : ''}
         <button class="quick-copy" data-id="${password.id}" data-type="username" title="Copia username">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
