@@ -960,21 +960,38 @@ function renderCategoriesOnly(passwords) {
 function createPasswordItem(password) {
   const categoryIcon = getCategoryIcon(password.category);
   
-  // Badge permessi - logica da README_PERMISSIONS.md:
-  // - Personale: password non condivisa (is_personal=true)
-  // - Owner: password condivisa di cui sei owner
-  // - R/W: accesso in scrittura ma non owner
-  // - R: solo lettura
+  // Badge permessi - stile Linux rwx
+  // I permessi vengono dal backend come stringa 'rwx', 'rw-', 'r--' o legacy 'read'/'write'
   let permissionBadge = '';
+  let permStr = '';
+  let badgeClass = '';
+  let badgeTitle = '';
+  
   if (password.is_personal) {
-    permissionBadge = '<span class="permission-badge personal" title="Password personale - visibile solo a te">Personale</span>';
+    // Password personale
+    permStr = 'rwx';
+    badgeClass = 'owner';
+    badgeTitle = 'Password personale - visibile solo a te';
   } else if (password.is_owner) {
-    permissionBadge = '<span class="permission-badge owner" title="Sei proprietario di questa password">Owner</span>';
-  } else if (password.access_level === 'write') {
-    permissionBadge = '<span class="permission-badge write" title="Lettura e Scrittura">R/W</span>';
+    // Owner della password condivisa
+    permStr = 'rwx';
+    badgeClass = 'owner';
+    badgeTitle = 'Proprietario - Lettura, Scrittura, Gestione';
   } else {
-    permissionBadge = '<span class="permission-badge read" title="Solo Lettura">R</span>';
+    // Determina permessi dal backend (supporta sia nuovo formato rwx che legacy)
+    const perms = password.permissions || password.access_level;
+    if (perms === 'rwx' || perms === 'write') {
+      permStr = 'rw-';
+      badgeClass = 'write';
+      badgeTitle = 'Lettura e Scrittura';
+    } else {
+      permStr = 'r--';
+      badgeClass = 'read';
+      badgeTitle = 'Solo Lettura';
+    }
   }
+  
+  permissionBadge = `<span class="permission-badge ${badgeClass}" title="${badgeTitle}">${permStr}</span>`;
   
   // Crea il link URL se presente
   let urlHtml = '';
