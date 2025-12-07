@@ -744,19 +744,39 @@
           gap: 10px;
           transition: background 0.2s;
         `;
-        item.innerHTML = `
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-size: 14px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${escapeHtml(password.name)}
-            </div>
-            <div style="font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-              ${escapeHtml(password.username || '')}
-            </div>
+        
+        // Contenuto testuale (cliccabile per fill)
+        const textContent = document.createElement('div');
+        textContent.style.cssText = 'flex: 1; min-width: 0;';
+        textContent.innerHTML = `
+          <div style="font-size: 14px; font-weight: 500; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHtml(password.name)}
           </div>
+          <div style="font-size: 12px; color: #6b7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            ${escapeHtml(password.username || '')}
+          </div>
+        `;
+        
+        // Freccia per aprire il dettaglio nel popup
+        const arrowBtn = document.createElement('div');
+        arrowBtn.className = 'passdoo-open-detail-btn';
+        arrowBtn.title = 'Apri dettaglio in Passdoo';
+        arrowBtn.style.cssText = `
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 4px;
+          border-radius: 4px;
+          transition: background 0.2s;
+        `;
+        arrowBtn.innerHTML = `
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         `;
+        
+        item.appendChild(textContent);
+        item.appendChild(arrowBtn);
         
         item.addEventListener('mouseenter', () => {
           item.style.background = '#f3f4f6';
@@ -764,10 +784,31 @@
         
         item.addEventListener('mouseleave', () => {
           item.style.background = 'transparent';
+          arrowBtn.style.background = 'transparent';
         });
         
-        item.addEventListener('click', async () => {
+        // Click sul testo: compila credenziali
+        textContent.addEventListener('click', async (e) => {
+          e.stopPropagation();
           await handlePasswordSelect(password.id);
+        });
+        
+        // Hover sulla freccia
+        arrowBtn.addEventListener('mouseenter', (e) => {
+          e.stopPropagation();
+          arrowBtn.style.background = '#e5e7eb';
+          arrowBtn.querySelector('svg').style.stroke = '#2563eb';
+        });
+        
+        arrowBtn.addEventListener('mouseleave', (e) => {
+          arrowBtn.style.background = 'transparent';
+          arrowBtn.querySelector('svg').style.stroke = '#9ca3af';
+        });
+        
+        // Click sulla freccia: apri popup con dettaglio
+        arrowBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          await openPopupWithDetail(password.id);
         });
         
         list.appendChild(item);
@@ -816,6 +857,26 @@
     } catch (error) {
       console.error('Passdoo: Error getting password', error);
       showNotification('Errore nel recupero della password', 'error');
+    }
+  }
+  
+  /**
+   * Apre il popup dell'estensione con il dettaglio di una password specifica
+   */
+  async function openPopupWithDetail(passwordId) {
+    if (!extensionContextValid) return;
+    
+    try {
+      hidePasswordMenu();
+      
+      // Invia messaggio al background per aprire il popup con il dettaglio
+      await safeSendMessage({
+        action: 'openPopupWithDetail',
+        passwordId: passwordId
+      });
+    } catch (error) {
+      console.error('Passdoo: Error opening popup with detail', error);
+      showNotification('Clicca sull\'icona Passdoo per vedere il dettaglio', 'info');
     }
   }
   

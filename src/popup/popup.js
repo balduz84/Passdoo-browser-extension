@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   initEventListeners();
   await getCurrentTab();
   await checkAuth();
+  
+  // Controlla se c'è una password da mostrare dal content script
+  await checkPendingPasswordDetail();
 });
 
 /**
@@ -1082,6 +1085,37 @@ async function showPasswordDetail(passwordId) {
     showToast('Errore nel caricamento della password', 'error');
   } finally {
     setLoading(false);
+  }
+}
+
+/**
+ * Controlla se c'è una password pendente da mostrare (richiesta dal content script)
+ */
+async function checkPendingPasswordDetail() {
+  try {
+    const result = await chrome.storage.local.get('pendingPasswordDetail');
+    
+    if (result.pendingPasswordDetail) {
+      const { id, timestamp } = result.pendingPasswordDetail;
+      
+      // Verifica che la richiesta sia recente (max 30 secondi)
+      if (Date.now() - timestamp < 30000) {
+        // Pulisci la richiesta pendente
+        await chrome.storage.local.remove('pendingPasswordDetail');
+        
+        // Aspetta un attimo che il popup sia completamente caricato
+        setTimeout(() => {
+          if (state.isAuthenticated) {
+            showPasswordDetail(id);
+          }
+        }, 100);
+      } else {
+        // Richiesta scaduta, puliscila
+        await chrome.storage.local.remove('pendingPasswordDetail');
+      }
+    }
+  } catch (error) {
+    console.error('Error checking pending password detail:', error);
   }
 }
 

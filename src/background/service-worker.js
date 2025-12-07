@@ -99,6 +99,9 @@ async function handleMessage(message, sender) {
     case 'saveCredentials':
       return await saveCredentials(message.credentials);
     
+    case 'openPopupWithDetail':
+      return await openPopupWithDetail(message.passwordId);
+    
     default:
       throw new Error(`Azione non riconosciuta: ${message.action}`);
   }
@@ -394,6 +397,40 @@ async function getPasswordsByUrl(url) {
   } catch (error) {
     console.error('Passdoo: Get passwords by URL error', error);
     return { passwords: [] };
+  }
+}
+
+/**
+ * Apre il popup dell'estensione mostrando il dettaglio di una password specifica
+ * Salva l'ID in storage e apre il popup - il popup leggerà l'ID e mostrerà il dettaglio
+ */
+async function openPopupWithDetail(passwordId) {
+  try {
+    // Salva l'ID della password da visualizzare in storage
+    await chrome.storage.local.set({ 
+      pendingPasswordDetail: {
+        id: passwordId,
+        timestamp: Date.now()
+      }
+    });
+    
+    // Prova ad aprire il popup programmaticamente
+    // Nota: chrome.action.openPopup() è disponibile solo con permesso activeTab
+    // e solo su interazione utente, quindi potrebbe non funzionare sempre
+    try {
+      await chrome.action.openPopup();
+      return { success: true };
+    } catch (popupError) {
+      // Se non riesce ad aprire il popup, l'utente dovrà cliccare sull'icona
+      console.log('Passdoo: Cannot open popup programmatically, user needs to click the icon');
+      return { 
+        success: false, 
+        message: 'Clicca sull\'icona Passdoo nella toolbar per vedere il dettaglio'
+      };
+    }
+  } catch (error) {
+    console.error('Passdoo: Error opening popup with detail', error);
+    throw error;
   }
 }
 
