@@ -545,6 +545,8 @@
   
   /**
    * Aggiunge l'icona Passdoo a un campo
+   * Usa position:fixed e getBoundingClientRect per posizionare l'icona
+   * precisamente all'interno del campo input, indipendentemente dal layout della pagina
    */
   function addPassdooIcon(field) {
     if (!extensionContextValid) return;
@@ -552,47 +554,81 @@
     
     field.classList.add(PASSDOO_CLASS);
     
-    // Crea il wrapper se necessario
-    const wrapper = document.createElement('div');
-    wrapper.className = 'passdoo-field-wrapper';
-    wrapper.style.cssText = `
-      position: relative;
-      display: inline-block;
-      width: 100%;
-    `;
-    
     // Crea l'icona usando l'immagine PNG
     const icon = document.createElement('div');
     icon.className = PASSDOO_ICON_CLASS;
+    icon.dataset.passdooFieldId = Math.random().toString(36).substr(2, 9);
+    field.dataset.passdooFieldId = icon.dataset.passdooFieldId;
     
     const img = document.createElement('img');
     img.src = getIconUrl();
     img.alt = 'Passdoo';
     img.style.cssText = `
-      width: 20px;
-      height: 20px;
+      width: 18px;
+      height: 18px;
       object-fit: contain;
+      pointer-events: none;
     `;
     icon.appendChild(img);
     
     icon.style.cssText = `
-      position: absolute;
-      right: 8px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 24px;
-      height: 24px;
+      position: fixed;
+      width: 22px;
+      height: 22px;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
       opacity: 0.85;
       transition: opacity 0.2s;
-      z-index: 10000;
+      z-index: 2147483646;
       background: white;
       border-radius: 4px;
       padding: 2px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     `;
+    
+    // Funzione per posizionare l'icona
+    function positionIcon() {
+      const rect = field.getBoundingClientRect();
+      // Posiziona all'interno del campo, vicino al bordo destro
+      const iconRight = rect.right - 8;
+      const iconTop = rect.top + (rect.height / 2);
+      
+      icon.style.left = `${iconRight - 22}px`;
+      icon.style.top = `${iconTop - 11}px`;
+      
+      // Nascondi se l'input non è visibile
+      if (rect.width === 0 || rect.height === 0 || 
+          rect.bottom < 0 || rect.top > window.innerHeight ||
+          rect.right < 0 || rect.left > window.innerWidth) {
+        icon.style.display = 'none';
+      } else {
+        icon.style.display = 'flex';
+      }
+    }
+    
+    // Posiziona inizialmente
+    positionIcon();
+    
+    // Aggiorna posizione su scroll e resize
+    const updatePosition = () => {
+      if (document.body.contains(field) && document.body.contains(icon)) {
+        positionIcon();
+      } else if (!document.body.contains(field)) {
+        // Il campo è stato rimosso, rimuovi anche l'icona
+        icon.remove();
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      }
+    };
+    
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    
+    // Osserva cambiamenti di visibilità del campo
+    const observer = new MutationObserver(updatePosition);
+    observer.observe(field, { attributes: true, attributeFilter: ['style', 'class'] });
     
     icon.addEventListener('mouseenter', () => {
       icon.style.opacity = '1';
@@ -610,15 +646,15 @@
       togglePasswordMenu(field);
     });
     
-    // Inserisci l'icona dopo il campo
-    field.parentNode.insertBefore(wrapper, field);
-    wrapper.appendChild(field);
-    wrapper.appendChild(icon);
+    // Inserisci l'icona nel body per evitare problemi di layout
+    document.body.appendChild(icon);
     
     // Aggiusta il padding del campo per fare spazio all'icona
     const computedStyle = window.getComputedStyle(field);
     const currentPadding = parseInt(computedStyle.paddingRight) || 0;
-    field.style.paddingRight = `${Math.max(currentPadding, 36)}px`;
+    if (currentPadding < 32) {
+      field.style.paddingRight = `${Math.max(currentPadding, 32)}px`;
+    }
   }
   
   /**
