@@ -313,6 +313,11 @@ body {
   flex-shrink: 0;
 }
 
+.permission-badge.personal {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
 .permission-badge.owner {
   background: var(--primary-light);
   color: var(--primary-color);

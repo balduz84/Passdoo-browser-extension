@@ -960,10 +960,16 @@ function renderCategoriesOnly(passwords) {
 function createPasswordItem(password) {
   const categoryIcon = getCategoryIcon(password.category);
   
-  // Badge permessi: mostra se è owner o il livello di accesso
+  // Badge permessi - logica da README_PERMISSIONS.md:
+  // - Personale: password non condivisa (is_personal=true)
+  // - Owner: password condivisa di cui sei owner
+  // - R/W: accesso in scrittura ma non owner
+  // - R: solo lettura
   let permissionBadge = '';
-  if (password.is_owner) {
-    permissionBadge = '<span class="permission-badge owner" title="Sei nel gruppo Owner">Owner</span>';
+  if (password.is_personal) {
+    permissionBadge = '<span class="permission-badge personal" title="Password personale - visibile solo a te">Personale</span>';
+  } else if (password.is_owner) {
+    permissionBadge = '<span class="permission-badge owner" title="Sei proprietario di questa password">Owner</span>';
   } else if (password.access_level === 'write') {
     permissionBadge = '<span class="permission-badge write" title="Lettura e Scrittura">R/W</span>';
   } else {
