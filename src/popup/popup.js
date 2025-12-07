@@ -320,11 +320,11 @@ async function loadPasswords(forceRefresh = false) {
     // filtrate in base ai gruppi di permesso
     state.accessiblePasswords = state.passwords;
     
-    // Separa password in base al ruolo:
-    // - "Mie": sono owner (nel gruppo owner_group)
-    // - "Condivise": ho accesso ma non sono owner
-    state.personalPasswords = state.passwords.filter(p => p.is_owner);
-    state.sharedPasswords = state.passwords.filter(p => !p.is_owner);
+    // Separa password in base al tipo:
+    // - "Mie": password PERSONALI (is_personal=true, visibili solo a me)
+    // - "Condivise": password condivise (is_personal=false)
+    state.personalPasswords = state.passwords.filter(p => p.is_personal === true);
+    state.sharedPasswords = state.passwords.filter(p => p.is_personal !== true);
     
     // Trova password che matchano l'URL corrente
     state.urlMatchingPasswords = findMatchingPasswords();
@@ -372,8 +372,8 @@ function updatePasswordList() {
   // Se il filtro URL è attivo e non c'è ricerca manuale, usa le password matching
   if (state.urlFilterActive && !elements.searchInput.value) {
     basePasswords = state.urlMatchingPasswords;
-    basePersonal = state.urlMatchingPasswords.filter(p => p.is_owner);
-    baseShared = state.urlMatchingPasswords.filter(p => !p.is_owner);
+    basePersonal = state.urlMatchingPasswords.filter(p => p.is_personal === true);
+    baseShared = state.urlMatchingPasswords.filter(p => p.is_personal !== true);
   }
   
   if (state.clientFilter) {
@@ -389,19 +389,19 @@ function updatePasswordList() {
   }
   
   if (state.currentTab === 'personal') {
-    // Tab "Mie": password dove sono owner
+    // Tab "Mie": password PERSONALI (is_personal=true)
     passwordsToShow = filteredBySearch.length > 0 || elements.searchInput.value 
-      ? filteredBySearch.filter(p => p.is_owner)
+      ? filteredBySearch.filter(p => p.is_personal === true)
       : basePersonal;
     if (passwordsToShow.length === 0) {
       elements.emptyMessage.textContent = state.clientFilter 
-        ? `Nessuna password di cui sei owner per ${state.clientFilter.name}`
-        : 'Nessuna password di cui sei owner';
+        ? `Nessuna password personale per ${state.clientFilter.name}`
+        : 'Nessuna password personale';
     }
   } else if (state.currentTab === 'shared') {
-    // Tab "Condivise": password dove non sono owner ma ho accesso
+    // Tab "Condivise": password condivise (is_personal=false)
     passwordsToShow = filteredBySearch.length > 0 || elements.searchInput.value 
-      ? filteredBySearch.filter(p => !p.is_owner)
+      ? filteredBySearch.filter(p => p.is_personal !== true)
       : baseShared;
     if (passwordsToShow.length === 0) {
       elements.emptyMessage.textContent = state.clientFilter 
