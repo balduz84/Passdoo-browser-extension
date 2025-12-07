@@ -1006,25 +1006,52 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      padding: 12px 20px;
-      background: ${type === 'success' ? '#10b981' : '#ef4444'};
-      color: white;
-      border-radius: 8px;
+      padding: 12px 16px;
+      background: ${type === 'success' ? '#ffffff' : type === 'info' ? '#f0f9ff' : '#fef2f2'};
+      color: ${type === 'success' ? '#059669' : type === 'info' ? '#0369a1' : '#dc2626'};
+      border: 1px solid ${type === 'success' ? '#d1fae5' : type === 'info' ? '#bae6fd' : '#fecaca'};
+      border-radius: 12px;
       font-size: 14px;
       font-weight: 500;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 10002;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+      z-index: 2147483647;
       animation: passdooSlideIn 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     `;
-    notification.textContent = message;
+    
+    // Crea icona Passdoo
+    const icon = document.createElement('img');
+    icon.src = getIconUrl();
+    icon.alt = 'Passdoo';
+    icon.style.cssText = 'width: 20px; height: 20px; object-fit: contain;';
+    
+    // Crea contenitore testo
+    const textContainer = document.createElement('div');
+    textContainer.style.cssText = 'display: flex; flex-direction: column; gap: 2px;';
+    
+    const title = document.createElement('span');
+    title.textContent = 'Passdoo';
+    title.style.cssText = 'font-weight: 600; font-size: 13px; color: #111827;';
+    
+    const messageEl = document.createElement('span');
+    messageEl.textContent = message;
+    messageEl.style.cssText = `font-size: 13px; color: ${type === 'success' ? '#059669' : type === 'info' ? '#0369a1' : '#dc2626'};`;
+    
+    textContainer.appendChild(title);
+    textContainer.appendChild(messageEl);
+    
+    notification.appendChild(icon);
+    notification.appendChild(textContainer);
     
     document.body.appendChild(notification);
     
     setTimeout(() => {
       notification.style.animation = 'passdooSlideOut 0.3s ease';
       setTimeout(() => notification.remove(), 300);
-    }, 2000);
+    }, 2500);
   }
   
   /**

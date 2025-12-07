@@ -1214,6 +1214,9 @@ async function handleFillCredentials() {
   }
 }
 
+// Timer per nascondere automaticamente la password
+let passwordVisibilityTimer = null;
+
 /**
  * Toggle visibilità password
  */
@@ -1221,9 +1224,27 @@ function togglePasswordVisibility() {
   const passwordEl = elements.detailPassword;
   const isHidden = passwordEl.classList.contains('password-masked');
   
+  // Cancella il timer precedente se esiste
+  if (passwordVisibilityTimer) {
+    clearTimeout(passwordVisibilityTimer);
+    passwordVisibilityTimer = null;
+  }
+  
   if (isHidden) {
     passwordEl.textContent = passwordEl.dataset.value;
     passwordEl.classList.remove('password-masked');
+    
+    // Nascondi automaticamente dopo 5 secondi
+    passwordVisibilityTimer = setTimeout(() => {
+      passwordEl.textContent = '••••••••';
+      passwordEl.classList.add('password-masked');
+      // Aggiorna icone
+      const iconEye = elements.btnTogglePassword.querySelector('.icon-eye');
+      const iconEyeOff = elements.btnTogglePassword.querySelector('.icon-eye-off');
+      iconEye.style.display = 'block';
+      iconEyeOff.style.display = 'none';
+      passwordVisibilityTimer = null;
+    }, 5000);
   } else {
     passwordEl.textContent = '••••••••';
     passwordEl.classList.add('password-masked');
