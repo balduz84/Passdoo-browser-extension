@@ -98,6 +98,57 @@
   }
   
   /**
+   * Rimuove le icone Passdoo che non sono più associate a campi visibili
+   * Questo è necessario quando la pagina cambia (es. dopo login, mostra campo OTP)
+   */
+  function cleanupOrphanedIcons() {
+    const icons = document.querySelectorAll('.' + PASSDOO_ICON_CLASS);
+    
+    icons.forEach(icon => {
+      const fieldId = icon.dataset.passdooFieldId;
+      if (!fieldId) {
+        // Icona senza ID associato, rimuovila
+        icon.remove();
+        return;
+      }
+      
+      // Trova il campo associato
+      const field = document.querySelector(`[data-passdoo-field-id="${fieldId}"]`);
+      
+      if (!field) {
+        // Il campo non esiste più, rimuovi l'icona
+        icon.remove();
+        return;
+      }
+      
+      if (!isVisible(field)) {
+        // Il campo non è più visibile, rimuovi l'icona e la classe dal campo
+        icon.remove();
+        field.classList.remove(PASSDOO_CLASS);
+        delete field.dataset.passdooFieldId;
+        return;
+      }
+      
+      // Se il campo è ancora visibile, verifica se è ancora un campo di login valido
+      // (potrebbe essere stato cambiato in un altro tipo di input)
+      const isLoginField = field.matches('input[type="password"], input[type="text"], input[type="email"]');
+      if (!isLoginField) {
+        icon.remove();
+        field.classList.remove(PASSDOO_CLASS);
+        delete field.dataset.passdooFieldId;
+      }
+    });
+    
+    // Resetta anche i riferimenti ai campi se sono stati rimossi
+    if (loginFields.password && !document.body.contains(loginFields.password)) {
+      loginFields.password = null;
+    }
+    if (loginFields.username && !document.body.contains(loginFields.username)) {
+      loginFields.username = null;
+    }
+  }
+  
+  /**
    * Inizializzazione
    */
   function init() {
@@ -157,6 +208,9 @@
    * Cerca i campi di login nella pagina
    */
   function findLoginFields() {
+    // Prima rimuovi le icone associate a campi non più visibili o rimossi
+    cleanupOrphanedIcons();
+    
     // Cerca il campo password
     for (const selector of PASSWORD_SELECTORS) {
       const field = document.querySelector(selector);
@@ -581,7 +635,7 @@
       cursor: pointer;
       opacity: 0.85;
       transition: opacity 0.2s;
-      z-index: 2147483646;
+      z-index: 2147483640;
       background: white;
       border-radius: 4px;
       padding: 2px;
@@ -689,7 +743,7 @@
       background: white;
       border-radius: 8px;
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      z-index: 10001;
+      z-index: 2147483647;
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     `;
@@ -1005,8 +1059,10 @@
   function observeDOM() {
     const observer = new MutationObserver((mutations) => {
       let shouldCheck = false;
+      let nodesRemoved = false;
       
       for (const mutation of mutations) {
+        // Controlla nodi aggiunti
         if (mutation.addedNodes.length > 0) {
           for (const node of mutation.addedNodes) {
             if (node.nodeType === Node.ELEMENT_NODE) {
@@ -1017,10 +1073,23 @@
             }
           }
         }
-        if (shouldCheck) break;
+        
+        // Controlla nodi rimossi (potrebbero essere campi con icone)
+        if (mutation.removedNodes.length > 0) {
+          for (const node of mutation.removedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              if (node.matches && (node.matches('input') || node.matches('.' + PASSDOO_CLASS) || node.querySelector('input'))) {
+                nodesRemoved = true;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (shouldCheck && nodesRemoved) break;
       }
       
-      if (shouldCheck) {
+      if (shouldCheck || nodesRemoved) {
         // Debounce
         clearTimeout(window.passdooCheckTimeout);
         window.passdooCheckTimeout = setTimeout(findLoginFields, 300);
